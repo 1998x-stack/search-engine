@@ -1,0 +1,35 @@
+name: design-checks
+
+on:
+  push:
+    branches: ["docs/**", "main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check Python syntax
+        run: python -m compileall -q src scripts tests
+      - name: Check docs, JSON, TOML and SQLite DDL
+        run: python scripts/validate_design.py
+      - name: SQLite schema constraint tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate Docker Compose YAML
+        run: docker compose config --quiet
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API scaffold image only
+        run: docker build --progress=plain -t search-engine-design:ci .

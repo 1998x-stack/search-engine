@@ -11,7 +11,7 @@ RUN groupadd --system --gid 10001 app && \
     useradd --system --uid 10001 --gid app --home-dir /app app && \
     mkdir -p /data && chown app:app /data
 
-COPY pyproject.toml /app/
+COPY pyproject.toml README.md /app/
 COPY src /app/src
 RUN python -m pip install --no-cache-dir .
 

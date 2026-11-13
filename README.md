@@ -36,6 +36,7 @@ SQLite and OpenSearch have **different roles**: SQLite holds crawl state, durabl
 | [08 Deployment](docs/08-DEPLOYMENT.md) | Dockerfile, Compose, Linux and security |
 | [09 Roadmap & Validation](docs/09-ROADMAP-EVALUATION.md) | P0-P2 gates, datasets, failure injection |
 | [10 Stanford IR Mapping](docs/10-STANFORD-IR-MAPPING.md) | Textbook chapter-to-design traceability |
+| [Gotchas](docs/gotchas.md) | Known design hazards, observed incidents, validation status |
 
 Companion design artifacts: [SQLite schema](schema/sqlite.sql), [OpenSearch index definition](infra/opensearch/documents-v1.json), [Dockerfile](Dockerfile), [Compose](compose.yaml), [environment sample](.env.example). Treat them as **proposed scaffolding** until validated end to end.
 
@@ -47,6 +48,16 @@ Companion design artifacts: [SQLite schema](schema/sqlite.sql), [OpenSearch inde
 4. **Consistency:** transactional outbox + idempotent index document IDs; retries are normal.
 5. **Ranking:** ship lexical relevance and judgment sets before optional semantic search.
 6. **Evolution:** PostgreSQL and shared broker are a migration, not early requirements.
+
+## Offline design checks
+
+~~~bash
+python3 scripts/validate_design.py
+python3 -m unittest discover -s tests -v
+docker compose config --quiet
+~~~
+
+These only validate the design/scaffold; no crawler, indexer or search service exists yet. The API scaffold returns 501 for /v1/search.
 
 ## First engineering milestone (not yet implemented)
 
