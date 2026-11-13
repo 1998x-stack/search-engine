@@ -1,6 +1,6 @@
 # Search Engine
 
-**Status: Phase 3 — SQLite-backed crawling, document processing and OpenSearch BM25 lexical search baseline.** This is a single-host development prototype, **not** a production-ready Web-scale search engine.
+**Status: Phase 4 — SQLite-backed crawling, document processing, OpenSearch BM25 and safe multilingual query planning.** This is a single-host development prototype, **not** a production-ready Web-scale search engine.
 
 ## Architecture
 
@@ -59,11 +59,31 @@ Tests cover cross-phase crawling and document processing, full SQLite migrations
 - [Phase 1 Crawl Foundation](docs/11-PHASE1-IMPLEMENTATION.md)
 - [Phase 2 Document Processing & Deduplication](docs/12-PHASE2-IMPLEMENTATION.md)
 - [Phase 3 OpenSearch Indexing](docs/13-PHASE3-IMPLEMENTATION.md)
+- [Phase 4 Query Understanding and IR Evaluation](docs/14-PHASE4-IMPLEMENTATION.md)
 - [Gotchas](docs/gotchas.md)
 - [Stanford Introduction to Information Retrieval](https://nlp.stanford.edu/IR-book/)
 
-Architecture docs `docs/00` to `docs/10` describe future scope and remain distinct from the implementation. PR #1 (architecture) -> #2 (crawler) -> #3 (processing) -> #4 (indexing) must be reviewed in dependency order; **nothing is auto-merged**.
+Architecture docs `docs/00` to `docs/10` describe future scope and remain distinct from the implementation. PR #1–#4 have been merged to main. Phase 4 is submitted as a separate feature branch.
 
 ## Explicit limits
 
 No complete Stanford relevance judgment set, semantic vectors, reranker, data-quality dashboard, production authentication/ACLs, online rolling reindex, multi-host worker coordination, PDF/OCR or long-term retention/erasure policy. Any new crawler deployment must respect site permission, robots.txt, rate limits and applicable terms.
+
+## Phase 4 query understanding
+
+Safe query grammar includes double-quoted mandatory phrases, negative terms/phrases, and exact filters:
+
+- lang:zh, lang:en, lang:mixed, lang:und; source:docs; site:example.org (exact hostname).
+- after:2026-01-01 (inclusive UTC midnight); before:2026-12-01 (exclusive UTC midnight).
+- rewrite_mode=off|suggest|expand. Suggest returns spelling hints WITHOUT changing the query; expand adds up to four low-boost curated synonyms.
+- Query controls never remove visibility=public or is_indexable=true, or any explicit source/site/date filter.
+
+GET /v1/query/analyze?q=... returns deterministic query diagnostics without requiring OpenSearch.
+GET /v1/search?q=...&rewrite_mode=suggest returns BM25 results plus analysis metadata.
+CLI: python -m search_engine.cli analyze "OpenSearch 中文分词"
+
+Evaluation fixture: PYTHONPATH=src python scripts/evaluate_relevance.py --input tests/fixtures/relevance-demo.json
+Measures graded nDCG@10, Recall@100, MRR@10, Precision@10 and judged coverage for Chinese, English and mixed queries.
+**The included example judgments are synthetic and verify formulas only; this is not a real relevance-quality benchmark.**
+
+Limitations: no production relevance judgments, learned spelling model, transformer reranker, semantic vector search, production ACLs or distributed crawl deployment.
