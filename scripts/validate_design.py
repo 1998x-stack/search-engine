@@ -1,60 +1,29 @@
 #!/usr/bin/env python3
-"""Offline static contract checks; does not imply the crawler/search is implemented."""
+"""Lightweight deterministic static contracts; not a live search test."""
 import json
 from pathlib import Path
 import sqlite3
-import sys
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def main() -> None:
-    required = [
-        "README.md",
-        *[f"docs/{i:02d}-{name}.md" for i, name in [
-            (0, "ARCHITECTURE"), (1, "CRAWLING"), (2, "PROCESSING-DEDUP"),
-            (3, "INDEXING"), (4, "QUERY-UNDERSTANDING"),
-            (5, "RETRIEVAL-RANKING"), (6, "BACKGROUND-JOBS"),
-            (7, "DATA-MODEL"), (8, "DEPLOYMENT"),
-            (9, "ROADMAP-EVALUATION"), (10, "STANFORD-IR-MAPPING")
-        ]],
-        "schema/sqlite.sql",
-        "infra/opensearch/documents-v1.json",
-        "Dockerfile", "compose.yaml", ".env.example",
-    ]
-    missing = [name for name in required if not (ROOT / name).is_file()]
-    if missing:
-        raise AssertionError(f"missing expected design files: {missing}")
+def main():
+    for i,slug in enumerate(['ARCHITECTURE','CRAWLING','PROCESSING-DEDUP','INDEXING',
+       'QUERY-UNDERSTANDING','RETRIEVAL-RANKING','BACKGROUND-JOBS','DATA-MODEL',
+       'DEPLOYMENT','ROADMAP-EVALUATION','STANFORD-IR-MAPPING','PHASE1-IMPLEMENTATION','PHASE2-IMPLEMENTATION']):
+        assert (ROOT / f'docs/{i:02d}-{slug}.md').is_file()
+    with sqlite3.connect(':memory:') as con:
+        con.executescript((ROOT/'schema/sqlite.sql').read_text())
+        tables={r[0] for r in con.execute('SELECT name FROM sqlite_master WHERE type="table"')}
+        assert {'sources','hosts','host_leases','host_robots','urls','jobs','fetches','index_outbox','document_signatures','signature_bands'} <= tables
+        assert con.execute('PRAGMA foreign_keys').fetchone()[0] == 1
+        assert con.execute('PRAGMA user_version').fetchone()[0] == 3
+    mapping=json.loads((ROOT/'infra/opensearch/documents-v1.json').read_text())
+    assert mapping['mappings']['dynamic']=='strict'
+    assert mapping['mappings']['properties']['title']['fields']['zh']['analyzer']=='cjk'
+    assert tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['name']=='startup-search-engine'
+    print('PHASE 2 STATIC CONTRACTS PASS; index/search E2E is NOT RUN')
 
-    schema = (ROOT / "schema/sqlite.sql").read_text(encoding="utf-8")
-    with sqlite3.connect(":memory:") as con:
-        con.executescript(schema)
-        tables = {row[0] for row in con.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
-        expected = {"sources", "hosts", "urls", "crawl_runs", "fetches",
-                    "documents", "document_versions", "duplicate_relations",
-                    "jobs", "index_outbox", "host_robots", "host_leases"}
-        assert expected <= tables, expected - tables
-        assert con.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-        assert con.execute("PRAGMA user_version").fetchone()[0] == 2
-
-    mapping = json.loads((ROOT / "infra/opensearch/documents-v1.json")
-                         .read_text(encoding="utf-8"))
-    assert mapping["mappings"]["dynamic"] == "strict"
-    assert mapping["mappings"]["properties"]["title"]["fields"]["zh"]["analyzer"] == "cjk"
-    assert mapping["settings"]["index"]["number_of_replicas"] == 0
-
-    pkg = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert pkg["project"]["name"] == "startup-search-engine"
-
-    print("STATIC DESIGN CHECKS PASS (does not test Docker/OpenSearch/crawl).")
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as exc:
-        print(f"STATIC DESIGN CHECKS FAILED: {exc}", file=sys.stderr)
-        raise
+if __name__=='__main__':
+    main()

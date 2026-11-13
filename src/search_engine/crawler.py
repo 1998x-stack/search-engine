@@ -1,9 +1,12 @@
 """Bounded, compliant single-host crawl worker. No indexing in Phase 1."""
 from __future__ import annotations
+
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
-from urllib.parse import urljoin
+import json
+import sqlite3
+from urllib.parse import urljoin, urlsplit
 import uuid
 
 from .db import Database, clock_ms
@@ -12,7 +15,8 @@ from .frontier import Frontier
 from .queue import Queue, Lease
 from .robots import RobotsPolicy
 from .store import BlobStore
-from .urls import URLRejected, origin
+from .urls import URLRejected, normalize_url, origin
+
 
 class LinkParser(HTMLParser):
     def __init__(self):
@@ -26,6 +30,7 @@ class LinkParser(HTMLParser):
                     self.hrefs.append(value)
                     break
 
+
 def retry_after_ms(header: str | None, now_ms: int) -> int | None:
     if not header:
         return None
@@ -37,6 +42,7 @@ def retry_after_ms(header: str | None, now_ms: int) -> int | None:
             return min(3_600_000, max(1000, int((target - datetime.fromtimestamp(now_ms / 1000, timezone.utc)).total_seconds() * 1000)))
         except (ValueError, TypeError, OverflowError):
             return None
+
 
 class Crawler:
     def __init__(self, db: Database, frontier: Frontier, fetcher: SafeFetcher,
@@ -98,6 +104,8 @@ class Crawler:
             self.queue.fail(lease,'robots_unreachable',retryable=True,
                             retry_after_ms=5000,now_ms=now)
             return 'retry'
+        # Explicit conservative policy: redirects, 401/403, challenges and
+        # errors are not interpreted as permission to crawl.
         allowed = response.status in (200,404,410)
         if response.status == 200:
             body = response.body.decode('utf-8',errors='replace')[:512_000]
@@ -122,6 +130,7 @@ class Crawler:
                 updated_at_ms=? WHERE host_id=?''',
                 ('allowed' if allowed else 'disallowed',now,now,host_id))
         if not allowed:
+            # 429/5xx robots is transient but fail-closed, then recheck.
             if response.status in (429,500,502,503,504):
                 self.queue.fail(lease,'robots_unavailable',retryable=True,
                                 retry_after_ms=retry_after_ms(response.headers.get('retry-after'),now) or 5000,
@@ -139,21 +148,24 @@ class Crawler:
                         (state,now,lease.entity_id))
             Queue.complete_tx(con,lease,now)
 
-    def _audit_fetch_tx(self, con, lease: Lease,
+    def _audit_fetch_tx(self, con: sqlite3.Connection, lease: Lease,
                         response: FetchResponse | None, now: int, *,
                         digest: str | None = None, blob_ref: str | None = None,
-                        error_class: str | None = None) -> None:
+                        error_class: str | None = None) -> str:
+        fetch_id = str(uuid.uuid4())
         con.execute('''INSERT INTO fetches
             (fetch_id,url_id,run_id,fetched_at_ms,finished_at_ms,http_status,
              final_url,content_type,raw_sha256,raw_blob_ref,bytes_received,
-             etag,last_modified,error_class)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (str(uuid.uuid4()),lease.entity_id,lease.run_id,now,now,
+             etag,last_modified,x_robots_tag,error_class)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (fetch_id,lease.entity_id,lease.run_id,now,now,
              response.status if response else None,response.url if response else None,
              response.content_type if response else None,digest,blob_ref,
              len(response.body) if response else 0,
              response.headers.get('etag') if response else None,
-             response.headers.get('last-modified') if response else None,error_class))
+             response.headers.get('last-modified') if response else None,
+             response.headers.get('x-robots-tag') if response else None,error_class))
+        return fetch_id
 
     def _fetch_url(self, lease: Lease, item: dict, now: int) -> str:
         with self.db.connect() as con:
@@ -165,7 +177,7 @@ class Crawler:
             response = self.fetcher.fetch(item['normalized_url'],
                                           etag=prior['etag'] if prior else None,
                                           last_modified=prior['last_modified'] if prior else None)
-        except FetchError:
+        except FetchError as exc:
             with self.db.transaction() as con:
                 Queue._guard(con,lease)
                 self._audit_fetch_tx(con,lease,None,now,error_class='transport_error')
@@ -209,10 +221,19 @@ class Crawler:
             digest,blob_ref = self.store.put(response.body)
         with self.db.transaction() as con:
             Queue._guard(con,lease)
-            self._audit_fetch_tx(con,lease,response,now,digest=digest,blob_ref=blob_ref)
+            fetch_id = self._audit_fetch_tx(con,lease,response,now,digest=digest,blob_ref=blob_ref)
+            # Enqueue processing atomically with durable fetch audit and fetch ACK.
+            # Repeated requests yield separate fetch IDs, while retrying a job is idempotent.
+            if status == 200 and response.content_type in ('text/html','application/xhtml+xml','text/plain'):
+                Queue.enqueue_tx(con,'EXTRACT_CONTENT',fetch_id,f'extract:{fetch_id}',
+                                 run_id=lease.run_id,now_ms=now)
+            elif status in (404,410) and item['document_id'] is not None:
+                Queue.enqueue_tx(con,'DELETE_DOCUMENT',fetch_id,f'delete:{fetch_id}',
+                                 run_id=lease.run_id,now_ms=now)
             con.execute('UPDATE urls SET status=?,last_seen_at_ms=? WHERE url_id=?',
                         ('deleted' if status in (404,410) else 'fetched',now,lease.entity_id))
-            # Redirects enqueue separate scoped tasks, each requiring host permission.
+            # Redirects enqueue separate, scoped crawl tasks; no hidden extra
+            # requests are made outside host token + robots scheduling.
             if status in (301,302,303,307,308):
                 location = response.headers.get('location')
                 hops = int(lease.payload.get('redirect_hops',0))
@@ -223,10 +244,11 @@ class Crawler:
                             depth=item['depth'],parent_url_id=lease.entity_id,
                             redirect_hops=hops+1,now_ms=now)
                     except (URLRejected,ValueError):
-                        pass
+                        pass  # out-of-scope redirects are recorded, never followed
             if (status == 200 and item['depth'] < self.max_depth
                     and response.content_type in ('text/html','application/xhtml+xml')):
                 parser = LinkParser()
+                # HTML link extraction only; full parsing/index processing is Phase 2.
                 parser.feed(response.body.decode('utf-8',errors='replace'))
                 for href in parser.hrefs[:self.max_links_per_page]:
                     try:

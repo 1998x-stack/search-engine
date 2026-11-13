@@ -1,4 +1,4 @@
-name: phase1-checks
+name: phase2-checks
 on:
   push:
     branches: ["main", "docs/**", "feat/**"]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  phase1-tests:
+  phase2-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -18,7 +18,7 @@ jobs:
         run: python -m compileall -q src scripts tests
       - name: Static contracts
         run: python scripts/validate_design.py
-      - name: Offline crawler integration and SQLite tests
+      - name: Offline crawl, processing, migration and SQLite tests
         run: PYTHONPATH=src python -W error::ResourceWarning -m unittest discover -s tests -v
       - name: Compose config syntax
         run: docker compose config --quiet
@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build Phase 1 API/worker image
-        run: docker build --progress=plain -t search-engine-phase1:ci .
-      - name: Smoke-test containerized crawl CLI and SQLite schema
-        run: docker run --rm search-engine-phase1:ci python -m search_engine.cli --database /tmp/smoke.db init
+      - name: Build Phase 2 API/processor image
+        run: docker build --progress=plain -t search-engine-phase2:ci .
+      - name: Smoke-test image CLI and SQLite schema
+        run: docker run --rm search-engine-phase2:ci python -m search_engine.cli --database /tmp/smoke.db init

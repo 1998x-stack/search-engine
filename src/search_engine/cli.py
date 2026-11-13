@@ -1,15 +1,20 @@
 """Operator CLI for Phase 1 (source/run/seed/worker/status)."""
 from __future__ import annotations
+
 import argparse
 import json
 import os
+from pathlib import Path
 import time
+
 from .crawler import Crawler
 from .db import Database
 from .fetch import SafeFetcher
 from .frontier import Frontier
 from .store import BlobStore
 from .queue import Queue
+from .processing import DocumentProcessor
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Search Engine Phase 1 crawl foundation')
@@ -25,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
     run = subs.add_parser('run')
     run.add_argument('source_id')
     run.add_argument('seed_url')
+    processor = subs.add_parser('process')
+    processor.add_argument('--once',action='store_true')
+    processor.add_argument('--max-steps',type=int,default=100)
+    processor.add_argument('--sleep-ms',type=int,default=1000)
     worker = subs.add_parser('worker')
     worker.add_argument('--once',action='store_true')
     worker.add_argument('--max-steps',type=int,default=100)
@@ -32,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     status = subs.add_parser('status')
     status.add_argument('--run-id')
     return parser
+
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
@@ -49,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
         url_id = frontier.add_url(args.source_id,args.seed_url,run_id=run_id)
         print(json.dumps({'run_id':run_id,'seed_url_id':url_id}))
     elif args.command == 'worker':
+        # Must be set to a named, truthful user agent with a contact method.
         ua = os.getenv('CRAWLER_USER_AGENT','')
         if not ua or '@' not in ua and 'http' not in ua:
             raise SystemExit('Set CRAWLER_USER_AGENT to an identifiable crawler with contact')
@@ -59,6 +70,14 @@ def main(argv: list[str] | None = None) -> int:
             Queue(db).finalize_runs()
             print(result,flush=True)
             if result in ('idle','deferred') and not args.once:
+                time.sleep(max(0,args.sleep_ms)/1000)
+    elif args.command == 'process':
+        processor = DocumentProcessor(db,BlobStore(args.raw_dir))
+        for _ in range(1 if args.once else args.max_steps):
+            result = processor.run_once()
+            Queue(db).finalize_runs()
+            print(result,flush=True)
+            if result == 'idle' and not args.once:
                 time.sleep(max(0,args.sleep_ms)/1000)
     elif args.command == 'status':
         with db.connect() as con:
