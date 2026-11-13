@@ -1,2 +1,2 @@
-"""Search engine Phase 1 crawl foundation. No indexing/search API yet."""
-__version__ = "0.1.0"
+"""Search engine Phase 2 processing and dedup; indexing/search not implemented."""
+__version__ = "0.2.0"

@@ -48,6 +48,19 @@ services:
     init: true
     stop_grace_period: 30s
     restart: "no"
+  processor:
+    profiles: ["crawl"]
+    build: .
+    command: ["python", "-m", "search_engine.cli", "process", "--max-steps", "10000000"]
+    environment:
+      SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
+      SEARCH_RAW_DIR: /data/raw
+    volumes:
+      - search-data:/data
+    init: true
+    stop_grace_period: 30s
+    restart: "no"
 volumes:
   opensearch-data:
   search-data:

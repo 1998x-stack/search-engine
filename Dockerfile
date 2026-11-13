@@ -1,4 +1,4 @@
-# Phase 1: API scaffold and opt-in crawl CLI; search API/indexer not implemented.
+# Phase 1: API scaffold and opt-in crawl CLI, no search index/search API implementation yet.
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,6 +11,7 @@ RUN groupadd --system --gid 10001 app && \
 COPY pyproject.toml README.md /app/
 COPY src /app/src
 COPY schema /app/schema
+COPY migrations /app/migrations
 RUN python -m pip install --no-cache-dir .
 USER app
 EXPOSE 8000

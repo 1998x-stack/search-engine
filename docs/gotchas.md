@@ -12,12 +12,23 @@
 | G-008 | P0 | Docker build needs README/schema | initial design review | COPY README and schema, CI build required |
 | G-009 | P0 | Dev OpenSearch security disabled | compose design | localhost-only, NOT production-safe |
 | G-010 | P0 | Docs-only CI not proof of crawler | phase boundary | new deterministic local HTTP integration tests |
-| G-011 | P0 | Numeric hostname (2130706433) passed initial URL validation | local failing test | reject noncanonical numeric IPv4 host; regression test PASS |
-| G-012 | P0 | HTTP 200 HTML robots verification page could appear empty and permit all pages | design inspection | robots content type and HTML challenge detection + persistent status guard; fixture test PASS |
+| G-011 | P0 | Numeric hostname (`2130706433`) passed initial URL validation | local failing test | reject noncanonical numeric IPv4 host; regression test PASS |
+| G-012 | P0 | HTTP 200 HTML robots verification page could appear empty and permit all pages | design inspection | robots content type and HTML challenge detection; fixture test PASS |
 | G-013 | P1 | Robots percent-encoding and multi-agent edge cases | design inspection | conservative P0 matcher, differential tests before production |
 | G-014 | P1 | Expired permit/worker with blocking network can cause transient over-concurrency | design inspection | timeout < permit lifetime, fault/load tests pending |
-| G-016 | P0 | Prior-run URLs bypassed new run's max_urls budget | local regression test | count jobs in current run, regardless of preexisting URL; PASS |
-| G-017 | P0 | sqlite3 context manager did not close connections, leaked file descriptors | Python 3.13 ResourceWarning test | ManagedConnection closes on exit; resource-warning-as-error tests PASS |
 | G-015 | P1 | Incomplete migration/backup/restore on populated data | design review | test via SQLite backup API before production |
 
 When recording new incidents: date, commit, environment, exact repro, root cause, regression test, fix and remaining risk. Distinguish observed failures from possible hazards.
+
+## Phase 2 additions
+
+| ID | Severity | Finding | Mitigation/status |
+|---|---|---|---|
+| G-018 | P0 | New schema could mask v2 migration if run before version inspection | `Database.initialize()` reads version first; separate atomic 0003 migration, fixture test PASS |
+| G-019 | P0 | Index outbox insert failure could leave a committed new revision | document/version/outbox/job ACK in one SQLite transaction; injected failure/rollback test PASS |
+| G-020 | P0 | Old queued fetch overwrites a newer document version | durable fetch row order compared before version writes; stale replay test PASS |
+| G-021 | P0 | Duplicate edges remain authoritative after content changes | invalidate old duplicate decisions on update/delete/noindex; regression PASS |
+| G-022 | P0 | HTTP 304 should not enqueue extraction or increase revision | crawler-to-outbox fixture test PASS |
+| G-023 | P1 | SimHash LSH candidate limit can silently miss duplicates | bounded 200 candidates; report recall loss and tune on labeled corpus; DESIGN RISK |
+| G-024 | P1 | HTML boilerplate strip loses meaningful text on unusual pages | preserve raw bytes, version extractor, corpus-level evaluation; DESIGN RISK |
+| G-025 | P1 | Orphan raw/text blobs after failed transaction | retention-aware GC after source/version audit; NOT IMPLEMENTED |
