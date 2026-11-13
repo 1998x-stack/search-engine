@@ -41,7 +41,7 @@ HTTP 304 -> fetch metadata only, no content job/version/outbox
 
 ## SQLite v3 and migration
 
-Fresh installs use `schema/sqlite.sql` v3. Existing v2 databases run `migrations/0003_document_processing.sql` atomically via `Database.initialize()`. Added: `fetches.x_robots_tag`, `document_versions.canonical_hint`, `document_versions.description`, `document_signatures`, and `signature_bands` with indexes. A copy of the version-2 DDL in `migrations/fixture_phase1_schema.sql` is retained **only as a migration test fixture**.
+Fresh installs use `schema/sqlite.sql` v3. Existing v2 databases run `migrations/0003_document_processing.sql` atomically via `Database.initialize()`, under a Linux single-host advisory file lock to prevent crawler/processor startup races. Added: `fetches.x_robots_tag`, `document_versions.canonical_hint`, `document_versions.description`, `document_signatures`, and `signature_bands` with indexes. A copy of the version-2 DDL in `migrations/fixture_phase1_schema.sql` is retained **only as a migration test fixture**.
 
 > Backup real SQLite database + WAL consistently before upgrade (SQLite backup API); never copy only the main `.db` while writes are active. The v3 migration has a tested v2 fixture path but no live production restore drill yet.
 

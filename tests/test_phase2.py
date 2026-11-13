@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 from contextlib import closing
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import unittest
 import uuid
@@ -208,6 +209,20 @@ class ProcessorTests(unittest.TestCase):
         self.add_fetch('https://example.org/xml',b'<xml>not supported</xml>',kind='text/xml')
         self.assertEqual(self.processor.run_once(now_ms=101),'dead')
         self.assertEqual(self.row_counts(),(0,0,0))
+
+    def test_simultaneous_initializer_migration_is_serialized(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'concurrent.sqlite'
+            with closing(sqlite3.connect(path)) as con:
+                con.executescript(PHASE1_SCHEMA.read_text())
+            def boot(_):
+                local=Database(path,SCHEMA)
+                local.initialize()
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                list(pool.map(boot,range(6)))
+            with closing(sqlite3.connect(path)) as con:
+                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],3)
+                self.assertEqual(con.execute('SELECT COUNT(*) FROM sqlite_master WHERE name=\'document_signatures\'').fetchone()[0],1)
 
     def test_v2_to_v3_migration_preserves_data(self):
         with tempfile.TemporaryDirectory() as td:

@@ -32,3 +32,4 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-023 | P1 | SimHash LSH candidate limit can silently miss duplicates | bounded 200 candidates; report recall loss and tune on labeled corpus; DESIGN RISK |
 | G-024 | P1 | HTML boilerplate strip loses meaningful text on unusual pages | preserve raw bytes, version extractor, corpus-level evaluation; DESIGN RISK |
 | G-025 | P1 | Orphan raw/text blobs after failed transaction | retention-aware GC after source/version audit; NOT IMPLEMENTED |
+| G-026 | P0 | Concurrent worker startup can race on SQLite v2→v3 ALTER TABLE | advisory same-host file lock around schema version check+upgrade; 6 simultaneous initializer regression PASS |
