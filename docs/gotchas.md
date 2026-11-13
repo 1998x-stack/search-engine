@@ -72,6 +72,6 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-040 | P1 | RRF improves synthetic scores but regresses real relevance | synthetic-only evaluation fixture, require human qrels and per-language holdout/ablations |
 | G-041 | P1 | Cross-Encoder default MS MARCO model is English-first | opt-in rerank; evaluate zh/mixed separately before enabling; model execution NOT RUN |
 | G-042 | P1 | Simple vector receipt scan is not multi-worker durable lease queue | single worker only; full reconciliation; distribute later using leased outbox |
-| G-043 | P0 | Recreating vector index while retaining SQLite receipts hides missing vectors | manual receipts reset + backfill/rebuild plan needed; NOT IMPLEMENTED automatic online migration |
+| G-043 | P0 | Recreating vector index while retaining SQLite receipts hides missing vectors | explicit vector-reset-receipts --confirm + vector-sync under writer quiescence, no automatic online alias migration |
 | G-044 | P1 | Exact phrase/must-not semantics cannot be guaranteed by ANN candidate fusion | fallback to lexical-only for structured queries, preserving constraints; regression PASS |
 | G-045 | P1 | Only 20 candidates per route bounds fusion recall | report candidate-only total, measure Recall@100 once candidate budget is expanded |

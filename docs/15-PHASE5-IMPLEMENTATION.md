@@ -42,7 +42,7 @@ On `noindex` or 404/410, a **content-free logical tombstone** with higher revisi
 
 Bulk replies are checked per item; receipts only advance after a successful matching `_id`, and only if SQLite still reports that revision as latest. Failed responses remain eligible for retry on the next scan. This is an idempotent **single-worker reconciliation strategy**, not a durable distributed embedding queue.
 
-**Index loss caveat:** receipts refer to the previous vector index projection. Creating an empty replacement index without re-seeding receipt state will cause missing ANN results. Treat index replacement/model switch as an explicit offline maintenance/migration procedure; do not silently reuse old receipts. Automatic online vector alias rebuild is **not implemented**.
+**Index loss caveat:** receipts refer to the previous vector index projection. Creating an empty replacement index without re-seeding receipt state causes missing ANN results. After an explicitly managed replacement and with semantic writers stopped, `vector-reset-receipts --confirm` clears only current model's checkpoints, then `vector-sync` reprojects latest versions. There is NO automatic atomic online vector alias rebuild; operators must separately stage/swap the vector index and verify counts. Changing embedding models requires new index generation and reviewed cutover.
 
 ## Query and retrieval
 
@@ -64,6 +64,9 @@ python -m search_engine.cli --database ./data/search.db vector-init --index sear
 python -m search_engine.cli --database ./data/search.db vector-sync --batch-size 8
 export SEARCH_SEMANTIC_ENABLED=1
 python -m search_engine.cli --database ./data/search.db search '中文 检索' --mode hybrid
+# After offline vector-index replacement, stop vector writers; then optionally run
+# python -m search_engine.cli vector-reset-receipts --confirm
+# and vector-sync to reconstruct the full vector projection.
 # Opt-in reranking requires SEARCH_RERANK_ENABLED=1 and an appropriate model
 ```
 

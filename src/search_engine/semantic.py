@@ -164,6 +164,19 @@ class VectorProjector:
                 WHERE d.latest_revision>0 AND COALESCE(v.revision,0)<d.latest_revision
                 """, (self.embedder.model_key,)).fetchone()[0]
 
+    def reset_receipts(self, *, confirmed_quiescent: bool = False) -> int:
+        """Manual recovery after backing vector index/alias replacement.
+
+        Stop ALL semantic writers first. This clears only checkpoint metadata,
+        never canonical documents, and reprojects by current model_key.
+        """
+        if not confirmed_quiescent:
+            raise ValueError("Stop all vector writers and explicitly confirm quiescence")
+        with self.db.transaction() as con:
+            result = con.execute("DELETE FROM vector_receipts WHERE model_key=?",
+                                 (self.embedder.model_key,))
+            return result.rowcount
+
     def sync_once(self, *, count: int = 8, now_ms: int | None = None) -> dict:
         if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= MAX_PROJECTION_BATCH:
             raise ValueError("Vector batch size must be between 1 and 16")

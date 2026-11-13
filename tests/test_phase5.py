@@ -252,6 +252,16 @@ class Phase5Tests(unittest.TestCase):
         self.client.bulk=original
         self.assertEqual(self.projector.sync_once()["acked"],1)
 
+    def test_explicit_receipt_reset_enables_full_reconciliation(self):
+        self.put("en","Python Search","Search tutorial")
+        self.index_and_project()
+        self.assertEqual(self.projector.pending_count(),0)
+        with self.assertRaises(ValueError):
+            self.projector.reset_receipts()
+        self.assertEqual(self.projector.reset_receipts(confirmed_quiescent=True),1)
+        self.assertEqual(self.projector.pending_count(),1)
+        self.assertEqual(self.projector.sync_once()["acked"],1)
+
     def test_missing_embedder_falls_back_clearly(self):
         self.put("en","Python Search","Search tutorial")
         self.index_and_project()

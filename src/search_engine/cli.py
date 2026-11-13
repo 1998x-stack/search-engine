@@ -68,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument('--rerank',action='store_true')
     vector_init = subs.add_parser('vector-init')
     vector_init.add_argument('--index',default=VECTOR_INDEX)
+    vector_reset = subs.add_parser('vector-reset-receipts')
+    vector_reset.add_argument('--confirm',action='store_true')
     vector_sync = subs.add_parser('vector-sync')
     vector_sync.add_argument('--batch-size',type=int,default=8)
     vector_sync.add_argument('--max-steps',type=int,default=100)
@@ -123,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(plan_query(args.query,language=args.language,
                                     source_id=args.source_id,
                                     rewrite_mode=args.rewrite_mode).public_summary(),ensure_ascii=False))
-    elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search','vector-init','vector-sync'):
+    elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search','vector-init','vector-sync','vector-reset-receipts'):
         client = OpenSearchClient(os.getenv('OPENSEARCH_URL','http://127.0.0.1:9200'),
                                   username=os.getenv('OPENSEARCH_USERNAME'),
                                   password=os.getenv('OPENSEARCH_PASSWORD'))
@@ -133,6 +135,13 @@ def main(argv: list[str] | None = None) -> int:
             VectorIndexManager(client,Path(__file__).resolve().parents[2] /
                               'infra/opensearch/vectors-v1.json').initialize(args.index)
             print('Vector index and aliases initialized:',args.index)
+        elif args.command == 'vector-reset-receipts':
+            emb = SentenceTransformerEmbedder(
+                os.getenv('SEARCH_EMBEDDING_MODEL_ID',DEFAULT_MODEL_ID),
+                os.getenv('SEARCH_EMBEDDING_MODEL_REVISION','main'))
+            projector = VectorProjector(db,store,client,emb)
+            deleted = projector.reset_receipts(confirmed_quiescent=args.confirm)
+            print(json.dumps({'removed_receipts':deleted,'model_key':emb.model_key}))
         elif args.command == 'vector-sync':
             emb = SentenceTransformerEmbedder(
                 os.getenv('SEARCH_EMBEDDING_MODEL_ID',DEFAULT_MODEL_ID),

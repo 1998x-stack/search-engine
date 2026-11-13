@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     for i,slug in enumerate(['ARCHITECTURE','CRAWLING','PROCESSING-DEDUP','INDEXING',
        'QUERY-UNDERSTANDING','RETRIEVAL-RANKING','BACKGROUND-JOBS','DATA-MODEL',
-       'DEPLOYMENT','ROADMAP-EVALUATION','STANFORD-IR-MAPPING','PHASE1-IMPLEMENTATION','PHASE2-IMPLEMENTATION','PHASE3-IMPLEMENTATION']):
+       'DEPLOYMENT','ROADMAP-EVALUATION','STANFORD-IR-MAPPING','PHASE1-IMPLEMENTATION','PHASE2-IMPLEMENTATION','PHASE3-IMPLEMENTATION','PHASE4-IMPLEMENTATION','PHASE5-IMPLEMENTATION']):
         assert (ROOT / f'docs/{i:02d}-{slug}.md').is_file()
     with sqlite3.connect(':memory:') as con:
         con.executescript((ROOT/'schema/sqlite.sql').read_text())
