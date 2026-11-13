@@ -19,7 +19,7 @@ jobs:
       - name: Static contracts
         run: python scripts/validate_design.py
       - name: Offline crawler integration and SQLite tests
-        run: PYTHONPATH=src python -m unittest discover -s tests -v
+        run: PYTHONPATH=src python -W error::ResourceWarning -m unittest discover -s tests -v
       - name: Compose config syntax
         run: docker compose config --quiet
   docker-build:
@@ -29,3 +29,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Phase 1 API/worker image
         run: docker build --progress=plain -t search-engine-phase1:ci .
+      - name: Smoke-test containerized crawl CLI and SQLite schema
+        run: docker run --rm search-engine-phase1:ci python -m search_engine.cli --database /tmp/smoke.db init
