@@ -5,6 +5,11 @@ Only runs against an explicit disposable local test OpenSearch cluster.
 from __future__ import annotations
 import json
 import os
+import subprocess
+import sys
+import time
+from urllib.parse import urlencode
+from urllib.request import urlopen
 from pathlib import Path
 import tempfile
 import uuid
@@ -66,5 +71,26 @@ with tempfile.TemporaryDirectory() as tmp:
     assert client.alias_targets(WRITE_ALIAS)=={'search-documents-v002'}
     assert SearchService(client).search('检索',language='zh')['total']>=1
     assert SearchService(client).search('ranking',language='en')['total']==0
+    # Exercise the actual FastAPI/uvicorn boundary, not only SearchService.
+    api=subprocess.Popen([sys.executable,'-m','uvicorn','search_engine.api:app',
+                          '--host','127.0.0.1','--port','18089'],
+                          stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                          env=os.environ.copy())
+    try:
+        payload=None
+        for _ in range(40):
+            if api.poll() is not None:
+                raise RuntimeError('FastAPI process exited before startup')
+            try:
+                url='http://127.0.0.1:18089/v1/search?'+urlencode({'q':'检索','language':'zh'})
+                with urlopen(url,timeout=2) as response:
+                    payload=json.loads(response.read())
+                break
+            except OSError:
+                time.sleep(0.25)
+        assert payload and payload.get('total',0)>=1,payload
+    finally:
+        api.terminate()
+        api.wait(timeout=5)
     print(json.dumps({'live_opensearch':'PASS','reindexed_documents':result['documents'],
                       'chinese_tokens':len(cn['tokens']),'english_tokens':len(en['tokens'])}))

@@ -33,8 +33,10 @@ def search_query(q:str,*,limit:int=10,language:str|None=None,
     return {
         'track_total_hits':True,
         'from':offset,'size':limit,
-        '_source':['document_id','title','description','content','canonical_url',
+        '_source':['document_id','title','description','canonical_url',
                    'source_id','language','revision','updated_at_ms'],
+        'highlight':{'pre_tags':[''],'post_tags':[''],
+                     'fields':{'content':{'fragment_size':180,'number_of_fragments':1}}},
         'query':{'bool':{
             'filter':filters,
             'should':[
@@ -63,7 +65,7 @@ class SearchService:
         rows=[]
         for item in hits.get('hits',[]):
             source=item.get('_source',{})
-            content=source.get('description') or source.get('content') or ''
+            content=source.get('description') or ' '.join(item.get('highlight',{}).get('content',[])) or ''
             rows.append({'document_id':source.get('document_id',item.get('_id')),
                          'title':source.get('title',''),
                          'url':source.get('canonical_url',''),

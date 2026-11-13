@@ -14,6 +14,8 @@ from .opensearch import OpenSearchClient,READ_ALIAS,WRITE_ALIAS,SearchBackendErr
 from .store import BlobStore
 
 
+REBUILD_BATCH_BYTES=4_000_000
+
 def _snapshot(con):
     rows=con.execute('SELECT document_id,latest_revision FROM documents WHERE latest_revision>0 ORDER BY document_id').fetchall()
     digest=hashlib.sha256()
@@ -49,26 +51,39 @@ class IndexManager:
         self.client.create_index(new_index,mapping_from_file(self.mapping_path))
         indexer=OutboxIndexer(self.db,self.store,self.client,write_alias=new_index)
         now=clock_ms()
-        for start in range(0,len(versions),32):
-            actions=[]
-            for doc_id,rev in versions[start:start+32]:
-                with self.db.connect() as con:
-                    row=con.execute('''SELECT is_indexable FROM document_versions
-                        WHERE document_id=? AND revision=?''',(doc_id,rev)).fetchone()
-                if not row:
-                    raise RuntimeError('Missing document version during rebuild')
-                lease=IndexLease('rebuild',doc_id,rev,'upsert' if row['is_indexable'] else 'delete',
-                                 0,0,'rebuild')
-                prepared=indexer._materialize(lease,now)
-                if prepared is None:
-                    raise RuntimeError('Document changed during offline rebuild')
-                meta,body=prepared
-                actions.append((meta,body))
+        actions=[]
+        action_bytes=0
+        def flush() -> None:
+            nonlocal actions,action_bytes
+            if not actions:
+                return
             responses=self.client.bulk(actions)
             for (meta,_),response in zip(actions,responses):
                 if (not isinstance(response,dict) or response.get('_id')!=meta['index']['_id']
                         or not 200<=int(response.get('status',0))<300):
                     raise SearchBackendError('Rebuild bulk failed; old alias preserved')
+            actions=[]
+            action_bytes=0
+        for doc_id,rev in versions:
+            with self.db.connect() as con:
+                row=con.execute('''SELECT is_indexable FROM document_versions
+                    WHERE document_id=? AND revision=?''',(doc_id,rev)).fetchone()
+            if not row:
+                raise RuntimeError('Missing document version during rebuild')
+            lease=IndexLease('rebuild',doc_id,rev,'upsert' if row['is_indexable'] else 'delete',
+                             0,0,'rebuild')
+            prepared=indexer._materialize(lease,now)
+            if prepared is None:
+                raise RuntimeError('Document changed during offline rebuild')
+            meta,body=prepared
+            payload_bytes=len(json.dumps(body,ensure_ascii=False).encode())+300
+            if payload_bytes>REBUILD_BATCH_BYTES:
+                raise ValueError('Single document too large for rebuild Bulk budget')
+            if actions and (len(actions)>=32 or action_bytes+payload_bytes>REBUILD_BATCH_BYTES):
+                flush()
+            actions.append((meta,body))
+            action_bytes+=payload_bytes
+        flush()
         # Index refresh is required before checking count. For full P0 indexes all
         # logical tombstones are retained, so physical count = number of documents.
         self.client.request('POST',f'/{new_index}/_refresh')

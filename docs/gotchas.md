@@ -46,3 +46,5 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-023 | P1 | SQLite receipts are not an independent OpenSearch audit | Remote `_mget` revision audit and missing-doc repair deferred |
 | G-024 | P1 | CJK analyzer, OpenSearch version and JVM memory must be tested on real image | Dedicated live OpenSearch CI smoke; Linux production sizing not tested |
 | G-025 | P1 | Public-only search with no tenant ACL or indexers for restricted data | Explicit `visibility=public` filter, reject restricted ingestion until authenticated ACL exists |
+
+| G-026 | P0 | Reindex previously batched only by document count, risking oversized Bulk NDJSON | Add 4MB byte-capped batches and regression test; PASS locally |

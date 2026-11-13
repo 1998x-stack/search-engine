@@ -24,7 +24,7 @@ class FakeOpenSearch:
     """Models external_gte ordering and alias atomicity, not BM25 scoring."""
     def __init__(self):
         self.indices={};self.aliases={};self.fail_status={};self.broken=False
-        self.calls=[]
+        self.calls=[];self.bulk_batches=[]
 
     def create_index(self,index,mapping):
         if index in self.indices:
@@ -45,6 +45,7 @@ class FakeOpenSearch:
         self.aliases[READ_ALIAS]=new;self.aliases[WRITE_ALIAS]=new
 
     def bulk(self,actions):
+        self.bulk_batches.append(len(actions))
         if self.broken:
             raise SearchBackendError('backend unavailable',status=503,transient=True)
         results=[]
@@ -228,6 +229,18 @@ class Phase3Tests(unittest.TestCase):
         self.assertEqual(result['documents'],1)
         self.assertEqual(self.remote.alias_targets(READ_ALIAS),{'search-documents-v002'})
         self.assertEqual(SearchService(self.remote).search('Apple')['total'],1)
+
+    def test_rebuild_splits_bulk_by_byte_budget(self):
+        from unittest.mock import patch
+        self.put('https://example.org/a','<title>Alpha</title><p>'+('a'*650)+'</p>')
+        self.put('https://example.org/b','<title>Beta</title><p>'+('b'*650)+'</p>',now=200)
+        self.indexer.run_once(now_ms=1000)
+        self.remote.bulk_batches.clear()
+        manager=IndexManager(self.db,self.store,self.remote,ROOT/'infra/opensearch/documents-v1.json')
+        with patch('search_engine.rebuild.REBUILD_BATCH_BYTES',1700):
+            result=manager.rebuild_offline('search-documents-v004',confirmed_quiescent=True)
+        self.assertEqual(result['documents'],2)
+        self.assertEqual(self.remote.bulk_batches,[1,1])
 
     def test_rebuild_rejects_pending_outbox(self):
         self.put('https://example.org/a','<title>Pending</title><p>content</p>')

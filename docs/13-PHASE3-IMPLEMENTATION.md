@@ -42,7 +42,7 @@ python -m search_engine.cli index-audit
 python -m search_engine.cli search '中文检索' --language zh
 ```
 
-Rebuild requires **operator-verified quiescence**: stop crawler, processor and indexer workers; drain/ACK all outbox operations first; invoke `index-rebuild --new-index search-documents-v002 --offline-confirm`. It creates a new physical index, reprojects all latest source versions (including tombstones), refreshes and checks document count, verifies the SQLite document-version snapshot, and uses OpenSearch atomic `_aliases` to move read/write aliases together. It retains the old index for operator rollback. The final alias step holds a short SQLite writer lock, but **does not fence external indexers**; never use this as an uncoordinated online reindex.
+Rebuild requires **operator-verified quiescence**: stop crawler, processor and indexer workers; drain/ACK all outbox operations first; invoke `index-rebuild --new-index search-documents-v002 --offline-confirm`. It creates a new physical index, reprojects all latest source versions (including tombstones) in size-bounded Bulk batches (4MB), refreshes and checks document count, verifies the SQLite document-version snapshot, and uses OpenSearch atomic `_aliases` to move read/write aliases together. It retains the old index for operator rollback. The final alias step holds a short SQLite writer lock, but **does not fence external indexers**; never use this as an uncoordinated online reindex.
 
 ## 5. Tests / objective gates
 
