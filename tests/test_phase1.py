@@ -246,8 +246,11 @@ Allow: /tmp/public$''')
             FixtureHandler.robots_body = b'<html><title>Human verification</title></html>'
             FixtureHandler.robots_content_type = 'text/html'
             crawler,frontier,run = self.make_crawler(fixture)
+            frontier.add_url('s',fixture.root+'/next',run_id=run,now_ms=0)
             self.assertEqual(crawler.run_once(now_ms=1),'blocked')
+            self.assertEqual(crawler.run_once(now_ms=2),'blocked')
             self.assertEqual(FixtureHandler.hits.get('/',0),0)
+            self.assertEqual(FixtureHandler.hits.get('/next',0),0)
             with self.db.connect() as con:
                 self.assertEqual(con.execute('SELECT robots_status FROM hosts').fetchone()[0], 'disallowed')
 

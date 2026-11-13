@@ -73,10 +73,12 @@ class Crawler:
             return 'deferred'
         try:
             with self.db.connect() as con:
-                robot = con.execute('SELECT * FROM host_robots WHERE host_id=?', (host_id,)).fetchone()
+                robot = con.execute('''SELECT hr.*,h.robots_status FROM host_robots hr
+                    JOIN hosts h ON h.host_id=hr.host_id WHERE hr.host_id=?''',
+                    (host_id,)).fetchone()
             if not robot or robot['expires_at_ms'] <= now:
                 return self._refresh_robots(lease,host_id,item['normalized_url'],now)
-            if robot['status_code'] not in (200,404,410):
+            if robot['robots_status'] != 'allowed' or robot['status_code'] not in (200,404,410):
                 self._update_url_state(lease,'blocked',now)
                 return 'blocked'
             if robot['status_code'] == 200 and not RobotsPolicy.parse(robot['body']).allowed(
