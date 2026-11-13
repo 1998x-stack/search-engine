@@ -61,6 +61,23 @@ services:
     init: true
     stop_grace_period: 30s
     restart: "no"
+  indexer:
+    profiles: ["index"]
+    build: .
+    command: ["python", "-m", "search_engine.cli", "index", "--max-steps", "10000000"]
+    environment:
+      SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
+      SEARCH_RAW_DIR: /data/raw
+      OPENSEARCH_URL: http://opensearch:9200
+    volumes:
+      - search-data:/data
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    init: true
+    stop_grace_period: 30s
+    restart: "no"
 volumes:
   opensearch-data:
   search-data:

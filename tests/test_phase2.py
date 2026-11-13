@@ -221,7 +221,7 @@ class ProcessorTests(unittest.TestCase):
             with ThreadPoolExecutor(max_workers=6) as pool:
                 list(pool.map(boot,range(6)))
             with closing(sqlite3.connect(path)) as con:
-                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],3)
+                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],4)
                 self.assertEqual(con.execute('SELECT COUNT(*) FROM sqlite_master WHERE name=\'document_signatures\'').fetchone()[0],1)
 
     def test_v2_to_v3_migration_preserves_data(self):
@@ -237,7 +237,7 @@ class ProcessorTests(unittest.TestCase):
             old.initialize()
             old.initialize()
             with old.connect() as con:
-                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],3)
+                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],4)
                 self.assertEqual(con.execute('SELECT COUNT(*) FROM sources').fetchone()[0],1)
                 self.assertIn('x_robots_tag',[r[1] for r in con.execute('PRAGMA table_info(fetches)')])
 
