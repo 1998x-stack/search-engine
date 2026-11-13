@@ -1,4 +1,4 @@
-name: phase3-index-checks
+name: phase4-query-checks
 on:
   push:
     branches: ["main", "docs/**", "feat/**"]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  phase3-tests:
+  phase4-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -20,6 +20,8 @@ jobs:
         run: python scripts/validate_design.py
       - name: Run offline regression suite
         run: PYTHONPATH=src python -W error::ResourceWarning -m unittest discover -s tests -v
+      - name: Offline graded nDCG and Recall fixture (synthetic, not quality benchmark)
+        run: PYTHONPATH=src python scripts/evaluate_relevance.py --input tests/fixtures/relevance-demo.json
       - name: Check Compose configuration
         run: docker compose config --quiet
   docker-build:
@@ -53,7 +55,7 @@ jobs:
           done
           docker compose logs --no-color opensearch
           exit 1
-      - name: Run real CJK/English BM25, tombstone and alias rebuild smoke
+      - name: Live multilingual query DSL, BM25, tombstone and alias rebuild smoke
         env:
           OPENSEARCH_URL: http://127.0.0.1:9200
         run: python scripts/opensearch_live_smoke.py

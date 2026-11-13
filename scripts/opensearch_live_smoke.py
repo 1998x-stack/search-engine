@@ -60,6 +60,10 @@ with tempfile.TemporaryDirectory() as tmp:
     client.request('POST',f'/{name}/_refresh')
     assert SearchService(client).search('检索',language='zh')['total']>=1
     assert SearchService(client).search('ranking',language='en')['total']>=1
+    assert SearchService(client).search('Search site:example.org',language='en')['total']>=1
+    assert SearchService(client).search('Search site:other.example',language='en')['total']==0
+    assert SearchService(client).search('"Search Engine" guide',language='en')['total']>=1
+    assert SearchService(client).search('中文分词',rewrite_mode='expand')['analysis']['detected_language']=='zh'
     assert add('en','',status=410,at=600)=='deleted'
     assert idx.run_once(now_ms=1000)['acked']==1
     client.request('POST',f'/{name}/_refresh')

@@ -18,6 +18,7 @@ from .indexing import OutboxIndexer
 from .opensearch import OpenSearchClient, DEFAULT_INDEX
 from .rebuild import IndexManager
 from .search import SearchService
+from .query import plan_query
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument('query')
     query.add_argument('--language')
     query.add_argument('--source-id')
+    query.add_argument('--rewrite-mode',choices=['off','suggest','expand'],default='suggest')
+    analyze = subs.add_parser('analyze')
+    analyze.add_argument('query')
+    analyze.add_argument('--language')
+    analyze.add_argument('--source-id')
+    analyze.add_argument('--rewrite-mode',choices=['off','suggest','expand'],default='suggest')
     status = subs.add_parser('status')
     status.add_argument('--run-id')
     return parser
@@ -100,6 +107,10 @@ def main(argv: list[str] | None = None) -> int:
             print(result,flush=True)
             if result == 'idle' and not args.once:
                 time.sleep(max(0,args.sleep_ms)/1000)
+    elif args.command == 'analyze':
+        print(json.dumps(plan_query(args.query,language=args.language,
+                                    source_id=args.source_id,
+                                    rewrite_mode=args.rewrite_mode).public_summary(),ensure_ascii=False))
     elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search'):
         client = OpenSearchClient(os.getenv('OPENSEARCH_URL','http://127.0.0.1:9200'),
                                   username=os.getenv('OPENSEARCH_USERNAME'),
@@ -123,7 +134,8 @@ def main(argv: list[str] | None = None) -> int:
             manager = IndexManager(db,store,client,Path(__file__).resolve().parents[2] / 'infra/opensearch/documents-v1.json')
             print(json.dumps(manager.rebuild_offline(args.new_index,confirmed_quiescent=args.offline_confirm)))
         else:
-            print(json.dumps(SearchService(client).search(args.query,language=args.language,source_id=args.source_id),ensure_ascii=False))
+            print(json.dumps(SearchService(client).search(args.query,language=args.language,
+                                                    source_id=args.source_id,rewrite_mode=args.rewrite_mode),ensure_ascii=False))
     elif args.command == 'status':
         with db.connect() as con:
             if args.run_id:
