@@ -1,0 +1,20 @@
+[
+  {
+    "query_id": "fixture-zh",
+    "language": "zh",
+    "judgments": {"d1": 3, "d2": 1, "noise": 0},
+    "results": ["d1", "noise", "d2"]
+  },
+  {
+    "query_id": "fixture-en",
+    "language": "en",
+    "judgments": {"d3": 3, "d4": 2, "noise": 0},
+    "results": ["d4", "d3", "noise"]
+  },
+  {
+    "query_id": "fixture-mixed",
+    "language": "mixed",
+    "judgments": {"d5": 3, "d6": 1},
+    "results": ["d6", "d5"]
+  }
+]

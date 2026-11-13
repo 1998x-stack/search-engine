@@ -48,3 +48,14 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-025 | P1 | Public-only search with no tenant ACL or indexers for restricted data | Explicit `visibility=public` filter, reject restricted ingestion until authenticated ACL exists |
 
 | G-026 | P0 | Reindex previously batched only by document count, risking oversized Bulk NDJSON | Add 4MB byte-capped batches and regression test; PASS locally |
+
+## Phase 4 query and relevance risks
+
+| ID | Priority | Finding | Mitigation |
+|---|---|---|---|
+| G-027 | P0 | Query expansion may broaden beyond user hard constraints | bool.filter independent from scoring; safety tests cover all rewrite modes |
+| G-028 | P0 | Malformed/expensive user-supplied DSL | bounded typed parser, no direct OpenSearch DSL, clause and paging limits |
+| G-029 | P1 | Spelling suggestions can alter rare code identifiers | suggestion only, never automatically executed; tiny curated vocabulary |
+| G-030 | P1 | Chinese lexicon-based segmentation can be inaccurate | diagnostics only; OpenSearch CJK analyzer remains authoritative |
+| G-031 | P1 | Synthetic relevance metrics can be mistaken for quality improvement | mark fixtures synthetic; human judged holdout required |
+| G-032 | P1 | Site filter semantics could surprise users | exact hostname, not broad suffix wildcard |
