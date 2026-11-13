@@ -170,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
                     os.getenv('SEARCH_EMBEDDING_MODEL_REVISION','main')
                 ) if os.getenv('SEARCH_SEMANTIC_ENABLED')=='1' else None
                 reranker = CrossEncoderReranker(
-                    os.getenv('SEARCH_RERANKER_MODEL_ID','cross-encoder/ms-marco-MiniLM-L-6-v2'),
+                    os.getenv('SEARCH_RERANKER_MODEL_ID','cross-encoder/ms-marco-MiniLM-L6-v2'),
                     os.getenv('SEARCH_RERANKER_MODEL_REVISION','main')
                 ) if args.rerank and os.getenv('SEARCH_RERANK_ENABLED')=='1' else None
                 result = HybridSearchService(client,db,emb,reranker).search(

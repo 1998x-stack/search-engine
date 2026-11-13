@@ -1,4 +1,4 @@
-name: phase4-query-checks
+name: phase5-hybrid-checks
 on:
   push:
     branches: ["main", "docs/**", "feat/**"]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  phase4-tests:
+  phase5-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,6 +22,8 @@ jobs:
         run: PYTHONPATH=src python -W error::ResourceWarning -m unittest discover -s tests -v
       - name: Offline graded nDCG and Recall fixture (synthetic, not quality benchmark)
         run: PYTHONPATH=src python scripts/evaluate_relevance.py --input tests/fixtures/relevance-demo.json
+      - name: Offline BM25 vs RRF comparison (synthetic only)
+        run: PYTHONPATH=src python scripts/evaluate_hybrid.py --input tests/fixtures/hybrid-synthetic.json
       - name: Check Compose configuration
         run: docker compose config --quiet
   docker-build:
@@ -30,9 +32,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build container
-        run: docker build --progress=plain -t search-engine-phase3:ci .
+        run: docker build --progress=plain -t search-engine-phase5:ci .
       - name: Initialize SQLite in container
-        run: docker run --rm search-engine-phase3:ci python -m search_engine.cli --database /tmp/check.db init
+        run: docker run --rm search-engine-phase5:ci python -m search_engine.cli --database /tmp/check.db init
   opensearch-live:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -55,7 +57,7 @@ jobs:
           done
           docker compose logs --no-color opensearch
           exit 1
-      - name: Live multilingual query DSL, BM25, tombstone and alias rebuild smoke
+      - name: Real OpenSearch 3.9 HNSW kNN, RRF, BM25, tombstone and alias smoke
         env:
           OPENSEARCH_URL: http://127.0.0.1:9200
         run: python scripts/opensearch_live_smoke.py

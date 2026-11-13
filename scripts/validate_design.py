@@ -23,7 +23,14 @@ def main():
     assert mapping['mappings']['dynamic']=='strict'
     assert mapping['mappings']['properties']['title']['fields']['zh']['analyzer']=='cjk'
     assert tomllib.loads((ROOT/'pyproject.toml').read_text())['project']['name']=='startup-search-engine'
-    print('PHASE 3 STATIC CONTRACTS PASS (real OS integration runs in dedicated CI)')
+    vector_mapping=json.loads((ROOT/'infra/opensearch/vectors-v1.json').read_text())
+    assert vector_mapping['mappings']['dynamic']=='strict'
+    assert vector_mapping['settings']['index']['knn'] is True
+    vector_field=vector_mapping['mappings']['properties']['embedding']
+    assert vector_field['type']=='knn_vector'
+    assert vector_field['dimension']==384
+    assert vector_field['method']['engine']=='lucene'
+    print('PHASE 5 STATIC CONTRACTS PASS (real OS integration runs in dedicated CI)')
 
 if __name__=='__main__':
     main()

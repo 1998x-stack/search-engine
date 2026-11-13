@@ -53,7 +53,7 @@ def search(q: str = Query(min_length=1, max_length=200),
             os.getenv("SEARCH_EMBEDDING_MODEL_REVISION", "main"),
         ) if os.getenv("SEARCH_SEMANTIC_ENABLED") == "1" else None
         reranker = CrossEncoderReranker(
-            os.getenv("SEARCH_RERANKER_MODEL_ID", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
+            os.getenv("SEARCH_RERANKER_MODEL_ID", "cross-encoder/ms-marco-MiniLM-L6-v2"),
             os.getenv("SEARCH_RERANKER_MODEL_REVISION", "main"),
         ) if rerank and os.getenv("SEARCH_RERANK_ENABLED") == "1" else None
         db = Database(os.getenv("SEARCH_DATABASE_PATH", "/data/search.db"))

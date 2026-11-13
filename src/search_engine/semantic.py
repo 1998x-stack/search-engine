@@ -78,7 +78,7 @@ class CrossEncoderReranker:
     Default model is English-first; evaluate Chinese/mixed quality before use.
     """
 
-    def __init__(self, model_id: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    def __init__(self, model_id: str = "cross-encoder/ms-marco-MiniLM-L6-v2",
                  revision: str = "main"):
         self.model_id = model_id
         self.revision = revision
