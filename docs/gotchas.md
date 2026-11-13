@@ -1,27 +1,23 @@
-# Gotchas — Design Assumptions, Not Observed Runtime Incidents
+# Gotchas — engineering notebook
 
-This file is a living engineering notebook. **None of the entries below is a verified production failure.** During implementation add date, environment, command, observed error, reproduction, root cause, regression test, fix commit and status. Never claim unexecuted tests are green.
-
-| ID | Severity | Design hazard | Mitigation | Status |
+| ID | Severity | Issue or risk | Evidence | Resolution/status |
 |---|---|---|---|---|
-| G-001 | P0 | SQLite WAL copied across machines/NFS | single-host only; move control plane to PostgreSQL | DESIGN RISK |
-| G-002 | P0 | Stale index UPSERT can resurrect deleted documents | monotonic version and reconciler; test tombstone expiration | DESIGN RISK |
-| G-003 | P0 | Independent fetch workers bypass host politeness | atomic central host token reservation | DESIGN RISK |
-| G-004 | P0 | Redirect/DNS rebinding to internal metadata service | validate every redirect and actual connect IP | DESIGN RISK |
-| G-005 | P0 | Challenge/403 retried indefinitely or evaded | stop, record denial, seek permission/API | DESIGN RISK |
-| G-006 | P1 | Chinese analyzers differ between index and query | versioned _analyze fixture tests | DESIGN RISK |
-| G-007 | P1 | Duplicate similarity chaining wrongly merges pages | pairwise/representative checks, reversible decisions | DESIGN RISK |
-| G-008 | P0 | Docker package installation fails if README absent | Dockerfile explicitly COPY README.md | DESIGN REVIEW FIX |
-| G-009 | P0 | Local compose uses disabled OpenSearch security | bind 127.0.0.1; never reuse in production | DESIGN RISK |
-| G-010 | P0 | Tests absent despite green documentation | CI static/SQLite tests separated from E2E | DESIGN RISK |
+| G-001 | P0 | SQLite WAL cannot share NFS across hosts | SQLite WAL documentation | single-host only; DESIGN RISK |
+| G-002 | P0 | Stale indexing writes can revive a deletion | versioned outbox design | Phase 2; NOT IMPLEMENTED |
+| G-003 | P0 | Parallel HTTP workers bypass host interval | design review | atomic host_leases; local race test PASS |
+| G-004 | P0 | DNS rebinding/internal metadata access | security design | vetted public IP, pinned socket, scoped port; local policy tests PASS, external fuzz NOT RUN |
+| G-005 | P0 | CAPTCHA/403 escalation violates site policy | design review | stop, do not evade; local fixture PASS |
+| G-006 | P1 | Chinese analyzer mismatch | architecture review | Phase 3; NOT IMPLEMENTED |
+| G-007 | P1 | Similarity chaining joins unrelated docs | architecture review | Phase 2; NOT IMPLEMENTED |
+| G-008 | P0 | Docker build needs README/schema | initial design review | COPY README and schema, CI build required |
+| G-009 | P0 | Dev OpenSearch security disabled | compose design | localhost-only, NOT production-safe |
+| G-010 | P0 | Docs-only CI not proof of crawler | phase boundary | new deterministic local HTTP integration tests |
+| G-011 | P0 | Numeric hostname (2130706433) passed initial URL validation | local failing test | reject noncanonical numeric IPv4 host; regression test PASS |
+| G-012 | P0 | HTTP 200 HTML robots verification page could appear empty and permit all pages | design inspection | robots content type and HTML challenge detection + persistent status guard; fixture test PASS |
+| G-013 | P1 | Robots percent-encoding and multi-agent edge cases | design inspection | conservative P0 matcher, differential tests before production |
+| G-014 | P1 | Expired permit/worker with blocking network can cause transient over-concurrency | design inspection | timeout < permit lifetime, fault/load tests pending |
+| G-016 | P0 | Prior-run URLs bypassed new run's max_urls budget | local regression test | count jobs in current run, regardless of preexisting URL; PASS |
+| G-017 | P0 | sqlite3 context manager did not close connections, leaked file descriptors | Python 3.13 ResourceWarning test | ManagedConnection closes on exit; resource-warning-as-error tests PASS |
+| G-015 | P1 | Incomplete migration/backup/restore on populated data | design review | test via SQLite backup API before production |
 
-## Incident template
-
-- Date/commit/host:
-- Preconditions and fixture:
-- Exact repro commands:
-- Expected vs actual:
-- Root cause and evidence:
-- Fix and linked PR:
-- Regression test and observed output:
-- Remaining risk:
+When recording new incidents: date, commit, environment, exact repro, root cause, regression test, fix and remaining risk. Distinguish observed failures from possible hazards.

@@ -1,6 +1,5 @@
-# LOCAL DEVELOPMENT ONLY: OpenSearch security intentionally disabled; never expose publicly.
+# Development profile only. Security disabled on OpenSearch; never expose publicly.
 name: search-engine-dev
-
 services:
   opensearch:
     image: opensearchproject/opensearch:3.9.0
@@ -12,10 +11,6 @@ services:
       - "127.0.0.1:9200:9200"
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health >/dev/null || exit 1"]
       interval: 15s
@@ -23,15 +18,12 @@ services:
       retries: 12
       start_period: 45s
     restart: unless-stopped
-
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     environment:
       SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
       OPENSEARCH_URL: http://opensearch:9200
-      SEARCH_PHASE: design-scaffold
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -42,7 +34,20 @@ services:
     init: true
     stop_grace_period: 20s
     restart: unless-stopped
-
+  crawler:
+    profiles: ["crawl"]
+    build: .
+    command: ["python", "-m", "search_engine.cli", "worker", "--max-steps", "10000000"]
+    environment:
+      SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
+      SEARCH_RAW_DIR: /data/raw
+      CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:-}
+    volumes:
+      - search-data:/data
+    init: true
+    stop_grace_period: 30s
+    restart: "no"
 volumes:
   opensearch-data:
   search-data:
