@@ -1,4 +1,4 @@
--- Phase 1 authoritative single-host control-plane schema, SQLite >=3.35.
+-- Phase 5 authoritative single-host control-plane schema v5, SQLite >=3.35.
 PRAGMA foreign_keys=ON;
 PRAGMA journal_mode=WAL;
 PRAGMA busy_timeout=5000;

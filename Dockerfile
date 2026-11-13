@@ -1,4 +1,4 @@
-# Phase 3: crawl/process/index worker and lexical search API.
+# Phase 5: lexical runtime by default; optional semantic dependencies via build arg.
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN groupadd --system --gid 10001 app && \
     useradd --system --uid 10001 --gid app --home-dir /app app && \
-    mkdir -p /data && chown app:app /data
+    mkdir -p /data /models && chown app:app /data /models
 COPY pyproject.toml README.md /app/
 COPY src /app/src
 COPY schema /app/schema

@@ -59,3 +59,19 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-030 | P1 | Chinese lexicon-based segmentation can be inaccurate | diagnostics only; OpenSearch CJK analyzer remains authoritative |
 | G-031 | P1 | Synthetic relevance metrics can be mistaken for quality improvement | mark fixtures synthetic; human judged holdout required |
 | G-032 | P1 | Site filter semantics could surprise users | exact hostname, not broad suffix wildcard |
+
+## Phase 5 — Vector index and fusion
+
+| ID | Severity | Hazard | Mitigation/status |
+|---|---|---|---|
+| G-035 | P0 | Stale ANN vector after 410/noindex leaks a deleted document | authoritative SQLite latest-revision check before presentation, logical tombstone projection; regression + OpenSearch smoke PASS |
+| G-036 | P0 | Old vector worker overwrites newer revision | external_gte revision fencing, conditional checkpoint update; unit test PASS |
+| G-037 | P0 | Vector search returns unauthorized results after filters | Lucene HNSW inline bool.filter (public/noindex/source/site/lang/date/model); unit and live tests PASS; production ACLs NOT IMPLEMENTED |
+| G-038 | P1 | Model revision drift produces incomparable embeddings | model_key fingerprint, query-time model_key filter; pin immutable model revisions in production; runtime model download NOT RUN |
+| G-039 | P1 | Embedding inference cold start/memory costs | opt-in separate semantic Docker image, cache volume; benchmark load and resource limits NOT RUN |
+| G-040 | P1 | RRF improves synthetic scores but regresses real relevance | synthetic-only evaluation fixture, require human qrels and per-language holdout/ablations |
+| G-041 | P1 | Cross-Encoder default MS MARCO model is English-first | opt-in rerank; evaluate zh/mixed separately before enabling; model execution NOT RUN |
+| G-042 | P1 | Simple vector receipt scan is not multi-worker durable lease queue | single worker only; full reconciliation; distribute later using leased outbox |
+| G-043 | P0 | Recreating vector index while retaining SQLite receipts hides missing vectors | manual receipts reset + backfill/rebuild plan needed; NOT IMPLEMENTED automatic online migration |
+| G-044 | P1 | Exact phrase/must-not semantics cannot be guaranteed by ANN candidate fusion | fallback to lexical-only for structured queries, preserving constraints; regression PASS |
+| G-045 | P1 | Only 20 candidates per route bounds fusion recall | report candidate-only total, measure Recall@100 once candidate budget is expanded |
