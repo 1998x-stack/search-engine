@@ -1,0 +1,59 @@
+[
+  {
+    "query_id": "zh-demo",
+    "language": "zh",
+    "judgments": {
+      "a": 3,
+      "b": 2,
+      "c": 0
+    },
+    "lexical": [
+      "b",
+      "c",
+      "a"
+    ],
+    "vector": [
+      "a",
+      "b"
+    ],
+    "reranked": [
+      "a",
+      "b",
+      "c"
+    ]
+  },
+  {
+    "query_id": "en-demo",
+    "language": "en",
+    "judgments": {
+      "d": 3,
+      "e": 1,
+      "f": 0
+    },
+    "lexical": [
+      "f",
+      "e",
+      "d"
+    ],
+    "vector": [
+      "d",
+      "e"
+    ]
+  },
+  {
+    "query_id": "mixed-demo",
+    "language": "mixed",
+    "judgments": {
+      "x": 3,
+      "y": 1
+    },
+    "lexical": [
+      "y",
+      "x"
+    ],
+    "vector": [
+      "x",
+      "y"
+    ]
+  }
+]
