@@ -1,2 +1,2 @@
-"""Search engine Phase 2 processing and dedup; indexing/search not implemented."""
-__version__ = "0.2.0"
+"""Search Engine Phase 3 lexical index and serving baseline."""
+__version__ = "0.3.0"

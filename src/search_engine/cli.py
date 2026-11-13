@@ -14,10 +14,14 @@ from .frontier import Frontier
 from .store import BlobStore
 from .queue import Queue
 from .processing import DocumentProcessor
+from .indexing import OutboxIndexer
+from .opensearch import OpenSearchClient, DEFAULT_INDEX
+from .rebuild import IndexManager
+from .search import SearchService
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='Search Engine Phase 1 crawl foundation')
+    parser = argparse.ArgumentParser(description='Search Engine crawl, process and lexical indexing')
     parser.add_argument('--database',default=os.getenv('SEARCH_DATABASE_PATH','./data/search.db'))
     parser.add_argument('--schema',default=os.getenv('SEARCH_SCHEMA_PATH','./schema/sqlite.sql'))
     parser.add_argument('--raw-dir',default=os.getenv('SEARCH_RAW_DIR','./data/raw'))
@@ -38,6 +42,23 @@ def build_parser() -> argparse.ArgumentParser:
     worker.add_argument('--once',action='store_true')
     worker.add_argument('--max-steps',type=int,default=100)
     worker.add_argument('--sleep-ms',type=int,default=1000)
+    indexer = subs.add_parser('index')
+    indexer.add_argument('--once',action='store_true')
+    indexer.add_argument('--max-steps',type=int,default=100)
+    indexer.add_argument('--sleep-ms',type=int,default=1000)
+    indexer.add_argument('--batch-size',type=int,default=32)
+    init_index = subs.add_parser('index-init')
+    init_index.add_argument('--index',default=DEFAULT_INDEX)
+    audit = subs.add_parser('index-audit')
+    retry_dead = subs.add_parser('index-retry-dead')
+    retry_dead.add_argument('--document-id')
+    rebuild = subs.add_parser('index-rebuild')
+    rebuild.add_argument('--new-index',required=True)
+    rebuild.add_argument('--offline-confirm',action='store_true')
+    query = subs.add_parser('search')
+    query.add_argument('query')
+    query.add_argument('--language')
+    query.add_argument('--source-id')
     status = subs.add_parser('status')
     status.add_argument('--run-id')
     return parser
@@ -79,6 +100,30 @@ def main(argv: list[str] | None = None) -> int:
             print(result,flush=True)
             if result == 'idle' and not args.once:
                 time.sleep(max(0,args.sleep_ms)/1000)
+    elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search'):
+        client = OpenSearchClient(os.getenv('OPENSEARCH_URL','http://127.0.0.1:9200'),
+                                  username=os.getenv('OPENSEARCH_USERNAME'),
+                                  password=os.getenv('OPENSEARCH_PASSWORD'))
+        store = BlobStore(args.raw_dir)
+        indexer = OutboxIndexer(db,store,client)
+        if args.command == 'index-init':
+            IndexManager(db,store,client,Path(__file__).resolve().parents[2] / 'infra/opensearch/documents-v1.json').initialize(args.index)
+            print('Index and aliases initialized:',args.index)
+        elif args.command == 'index':
+            for _ in range(1 if args.once else args.max_steps):
+                outcome=indexer.run_once(count=args.batch_size)
+                print(json.dumps(outcome),flush=True)
+                if not outcome['claimed'] and not args.once:
+                    time.sleep(max(0,args.sleep_ms)/1000)
+        elif args.command == 'index-audit':
+            print(json.dumps(indexer.audit_local()))
+        elif args.command == 'index-retry-dead':
+            print(json.dumps({'retried':indexer.retry_dead(document_id=args.document_id)}))
+        elif args.command == 'index-rebuild':
+            manager = IndexManager(db,store,client,Path(__file__).resolve().parents[2] / 'infra/opensearch/documents-v1.json')
+            print(json.dumps(manager.rebuild_offline(args.new_index,confirmed_quiescent=args.offline_confirm)))
+        else:
+            print(json.dumps(SearchService(client).search(args.query,language=args.language,source_id=args.source_id),ensure_ascii=False))
     elif args.command == 'status':
         with db.connect() as con:
             if args.run_id:

@@ -3,7 +3,7 @@
     "index": {
       "number_of_shards": 1,
       "number_of_replicas": 0,
-      "refresh_interval": "5s"
+      "refresh_interval": "3s"
     }
   },
   "mappings": {
@@ -18,26 +18,21 @@
       "language": { "type": "keyword" },
       "visibility": { "type": "keyword" },
       "allowed_principals": { "type": "keyword" },
-      "title": {
-        "type": "text",
-        "analyzer": "standard",
+      "title": { "type": "text", "analyzer": "standard",
         "fields": {
           "zh": { "type": "text", "analyzer": "cjk" },
           "en": { "type": "text", "analyzer": "english" },
           "raw": { "type": "keyword", "ignore_above": 512 }
         }
       },
-      "headings": {
-        "type": "text",
-        "analyzer": "standard",
+      "headings": { "type": "text", "analyzer": "standard",
         "fields": {
           "zh": { "type": "text", "analyzer": "cjk" },
           "en": { "type": "text", "analyzer": "english" }
         }
       },
-      "content": {
-        "type": "text",
-        "analyzer": "standard",
+      "description": { "type": "text", "analyzer": "standard" },
+      "content": { "type": "text", "analyzer": "standard",
         "fields": {
           "zh": { "type": "text", "analyzer": "cjk" },
           "en": { "type": "text", "analyzer": "english" }

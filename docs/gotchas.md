@@ -33,3 +33,18 @@ When recording new incidents: date, commit, environment, exact repro, root cause
 | G-024 | P1 | HTML boilerplate strip loses meaningful text on unusual pages | preserve raw bytes, version extractor, corpus-level evaluation; DESIGN RISK |
 | G-025 | P1 | Orphan raw/text blobs after failed transaction | retention-aware GC after source/version audit; NOT IMPLEMENTED |
 | G-026 | P0 | Concurrent worker startup can race on SQLite v2→v3 ALTER TABLE | advisory same-host file lock around schema version check+upgrade; 6 simultaneous initializer regression PASS |
+
+## Phase 3 index design findings
+
+| ID | Priority | Finding | Action/status |
+|---|---|---|---|
+| G-018 | P0 | Physical deletes lose tombstone external-version history and can permit stale delayed upserts | Use content-free logical tombstones with `external_gte`; verify 410/noindex and replay tests |
+| G-019 | P0 | Bulk HTTP 200 can contain item-level errors | Parse every Bulk item, per-item ACK/retry/dead-letter; regression test |
+| G-020 | P0 | Indexer crash after remote success but before SQLite receipt | At-least-once replay with external_gte, lease epoch fencing; regression test |
+| G-021 | P0 | Offline reindex can race live processor/indexer | Require operator quiescence; check pending outbox and SQLite version snapshot, short writer fence; full online safety NOT IMPLEMENTED |
+| G-022 | P1 | Logical tombstones still leave historical bytes in segments/snapshots | Formal purge/retention/backup erasure policy and restore drills NOT IMPLEMENTED |
+| G-023 | P1 | SQLite receipts are not an independent OpenSearch audit | Remote `_mget` revision audit and missing-doc repair deferred |
+| G-024 | P1 | CJK analyzer, OpenSearch version and JVM memory must be tested on real image | Dedicated live OpenSearch CI smoke; Linux production sizing not tested |
+| G-025 | P1 | Public-only search with no tenant ACL or indexers for restricted data | Explicit `visibility=public` filter, reject restricted ingestion until authenticated ACL exists |
+
+| G-026 | P0 | Reindex previously batched only by document count, risking oversized Bulk NDJSON | Add 4MB byte-capped batches and regression test; PASS locally |

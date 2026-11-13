@@ -146,5 +146,14 @@ CREATE INDEX IF NOT EXISTS idx_signature_candidate
  ON signature_bands(algorithm_version,band_number,band_value);
 CREATE INDEX IF NOT EXISTS idx_exact_current
  ON document_versions(normalized_sha256,is_indexable,document_id,revision);
-PRAGMA user_version=3;
+CREATE TABLE IF NOT EXISTS index_receipts (
+ index_alias TEXT NOT NULL,
+ document_id TEXT NOT NULL REFERENCES documents(document_id),
+ revision INTEGER NOT NULL CHECK(revision>=1),
+ op_id TEXT NOT NULL REFERENCES index_outbox(op_id),
+ indexed_at_ms INTEGER NOT NULL,
+ PRIMARY KEY(index_alias,document_id)
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_lease ON index_outbox(state,leased_until_ms);
+PRAGMA user_version=4;
 COMMIT;
