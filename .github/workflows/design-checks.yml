@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  phase1-tests:
+  phase2-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build Phase 1 API/worker image
-        run: docker build --progress=plain -t search-engine-phase1:ci .
+      - name: Build Phase 2 API/processor image
+        run: docker build --progress=plain -t search-engine-phase2:ci .
       - name: Smoke-test image CLI and SQLite schema
-        run: docker run --rm search-engine-phase1:ci python -m search_engine.cli --database /tmp/smoke.db init
+        run: docker run --rm search-engine-phase2:ci python -m search_engine.cli --database /tmp/smoke.db init
