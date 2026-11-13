@@ -98,7 +98,8 @@ class Phase5Tests(unittest.TestCase):
         self.run = self.frontier.create_run("demo", now_ms=0)
         self.processor = DocumentProcessor(self.db, self.store)
         self.client = HybridFake()
-        self.client.create_index("search-documents-v001", {})
+        self.client.create_index("search-documents-v001",json.loads(
+            (ROOT/"infra/opensearch/documents-v1.json").read_text()))
         self.client.ensure_initial_aliases("search-documents-v001")
         self.embedder = FakeEmbedder()
         self.vector_mgr = VectorIndexManager(
