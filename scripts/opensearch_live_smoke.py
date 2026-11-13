@@ -115,7 +115,8 @@ with tempfile.TemporaryDirectory() as tmp:
     api=subprocess.Popen([sys.executable,'-m','uvicorn','search_engine.api:app',
                           '--host','127.0.0.1','--port','18089'],
                           stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-                          env=os.environ.copy())
+                          env={**os.environ,'SEARCH_DATABASE_PATH':str(db.path),
+                               'SEARCH_SEMANTIC_ENABLED':'0'})
     try:
         payload=None
         for _ in range(40):
@@ -129,6 +130,14 @@ with tempfile.TemporaryDirectory() as tmp:
             except OSError:
                 time.sleep(0.25)
         assert payload and payload.get('total',0)>=1,payload
+        # API must clearly report a lexical fallback when no ML model is provisioned.
+        fallback_url='http://127.0.0.1:18089/v1/search?'+urlencode(
+            {'q':'检索','language':'zh','mode':'hybrid'})
+        with urlopen(fallback_url,timeout=3) as response:
+            fallback=json.loads(response.read())
+        assert fallback['mode_requested']=='hybrid' and fallback['mode_actual']=='lexical',fallback
+        assert 'embedding_model_not_configured' in fallback['degraded_components'],fallback
+        assert fallback['results'],fallback
     finally:
         api.terminate()
         api.wait(timeout=5)
