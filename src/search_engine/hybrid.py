@@ -125,6 +125,8 @@ class HybridSearchService:
             raise ValueError("Rerank requires hybrid mode")
         if mode == "hybrid" and offset != 0:
             raise ValueError("Hybrid paging requires offset=0; deep paging is not yet supported")
+        search_query(q, limit=limit, language=language, source_id=source_id,
+                     offset=offset, rewrite_mode=rewrite_mode)
         plan = plan_query(q, language=language, source_id=source_id,
                           rewrite_mode=rewrite_mode)
         lexical_service = SearchService(self.client, self.lexical_read_alias)

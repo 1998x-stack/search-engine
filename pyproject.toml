@@ -3,8 +3,8 @@ requires = ["setuptools>=68,<81", "wheel>=0.42"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "startup-search-engine"
-version = "0.4.0"
-description = "Phase 4: safe bilingual query planning and offline relevance evaluation"
+version = "0.5.0"
+description = "Phase 5: optional multilingual HNSW retrieval, RRF and reranking"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
@@ -12,3 +12,6 @@ dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
 where = ["src"]
 [project.scripts]
 search-crawl = "search_engine.cli:main"
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=3,<6"]

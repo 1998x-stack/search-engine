@@ -1,2 +1,2 @@
-"""Search Engine Phase 4 multilingual query understanding and lexical retrieval."""
-__version__ = "0.4.0"
+"""Search Engine Phase 5 lexical and optional hybrid retrieval."""
+__version__ = "0.5.0"
