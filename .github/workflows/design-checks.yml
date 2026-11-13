@@ -1,15 +1,12 @@
-name: design-checks
-
+name: phase1-checks
 on:
   push:
-    branches: ["docs/**", "main"]
+    branches: ["main", "docs/**", "feat/**"]
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
-  static-contracts:
+  phase1-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -17,19 +14,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Check Python syntax
+      - name: Compile Python
         run: python -m compileall -q src scripts tests
-      - name: Check docs, JSON, TOML and SQLite DDL
+      - name: Static contracts
         run: python scripts/validate_design.py
-      - name: SQLite schema constraint tests
-        run: python -m unittest discover -s tests -v
-      - name: Validate Docker Compose YAML
+      - name: Offline crawler integration and SQLite tests
+        run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - name: Compose config syntax
         run: docker compose config --quiet
-
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build API scaffold image only
-        run: docker build --progress=plain -t search-engine-design:ci .
+      - name: Build Phase 1 API/worker image
+        run: docker build --progress=plain -t search-engine-phase1:ci .
