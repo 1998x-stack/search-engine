@@ -1,0 +1,53 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "document_id": { "type": "keyword" },
+      "source_id": { "type": "keyword" },
+      "version_id": { "type": "keyword" },
+      "revision": { "type": "long" },
+      "canonical_url": { "type": "keyword", "ignore_above": 2048 },
+      "host": { "type": "keyword" },
+      "language": { "type": "keyword" },
+      "visibility": { "type": "keyword" },
+      "allowed_principals": { "type": "keyword" },
+      "title": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "zh": { "type": "text", "analyzer": "cjk" },
+          "en": { "type": "text", "analyzer": "english" },
+          "raw": { "type": "keyword", "ignore_above": 512 }
+        }
+      },
+      "headings": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "zh": { "type": "text", "analyzer": "cjk" },
+          "en": { "type": "text", "analyzer": "english" }
+        }
+      },
+      "content": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "zh": { "type": "text", "analyzer": "cjk" },
+          "en": { "type": "text", "analyzer": "english" }
+        }
+      },
+      "normalized_sha256": { "type": "keyword" },
+      "duplicate_group_id": { "type": "keyword" },
+      "is_indexable": { "type": "boolean" },
+      "updated_at_ms": { "type": "date", "format": "epoch_millis" },
+      "indexed_at_ms": { "type": "date", "format": "epoch_millis" }
+    }
+  }
+}
