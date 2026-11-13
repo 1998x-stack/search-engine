@@ -35,10 +35,10 @@ def main() -> None:
         )}
         expected = {"sources", "hosts", "urls", "crawl_runs", "fetches",
                     "documents", "document_versions", "duplicate_relations",
-                    "jobs", "index_outbox"}
+                    "jobs", "index_outbox", "host_robots", "host_leases"}
         assert expected <= tables, expected - tables
         assert con.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-        assert con.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert con.execute("PRAGMA user_version").fetchone()[0] == 2
 
     mapping = json.loads((ROOT / "infra/opensearch/documents-v1.json")
                          .read_text(encoding="utf-8"))

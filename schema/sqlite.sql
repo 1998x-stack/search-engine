@@ -173,5 +173,25 @@ CREATE INDEX IF NOT EXISTS idx_outbox_due ON index_outbox(state,scheduled_at_ms)
 CREATE INDEX IF NOT EXISTS idx_outbox_expired ON index_outbox(state,leased_until_ms);
 CREATE INDEX IF NOT EXISTS idx_outbox_document ON index_outbox(document_id,revision DESC);
 
-PRAGMA user_version = 1;
+
+-- Added by Phase 1, reused by all fetch workers on the same SQLite host.
+CREATE TABLE IF NOT EXISTS host_robots (
+  host_id TEXT PRIMARY KEY REFERENCES hosts(host_id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  status_code INTEGER NOT NULL CHECK(status_code BETWEEN 100 AND 599),
+  fetched_at_ms INTEGER NOT NULL,
+  expires_at_ms INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS host_leases (
+  token TEXT PRIMARY KEY,
+  host_id TEXT NOT NULL REFERENCES hosts(host_id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  leased_until_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_host_leases_expiry
+  ON host_leases(host_id,leased_until_ms);
+
+PRAGMA user_version = 2;
 COMMIT;
