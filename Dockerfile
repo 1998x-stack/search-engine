@@ -13,7 +13,8 @@ COPY src /app/src
 COPY schema /app/schema
 COPY migrations /app/migrations
 COPY infra /app/infra
-RUN python -m pip install --no-cache-dir .
+ARG INSTALL_SEMANTIC=0
+RUN if [ "$INSTALL_SEMANTIC" = "1" ]; then python -m pip install --no-cache-dir ".[semantic]"; else python -m pip install --no-cache-dir .; fi
 USER app
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

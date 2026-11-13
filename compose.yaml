@@ -78,6 +78,60 @@ services:
     init: true
     stop_grace_period: 30s
     restart: "no"
+
+  semantic-api:
+    profiles: ["semantic"]
+    build:
+      context: .
+      args:
+        INSTALL_SEMANTIC: "1"
+    environment:
+      SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
+      SEARCH_SEMANTIC_ENABLED: "1"
+      SEARCH_RERANK_ENABLED: ${SEARCH_RERANK_ENABLED:-0}
+      SEARCH_EMBEDDING_MODEL_ID: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      SEARCH_EMBEDDING_MODEL_REVISION: ${SEARCH_EMBEDDING_MODEL_REVISION:-main}
+      OPENSEARCH_URL: http://opensearch:9200
+      HF_HOME: /models
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - search-data:/data
+      - embedding-models:/models
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    init: true
+    stop_grace_period: 40s
+    restart: unless-stopped
+
+  vector-projector:
+    profiles: ["semantic"]
+    build:
+      context: .
+      args:
+        INSTALL_SEMANTIC: "1"
+    command: ["python", "-m", "search_engine.cli", "vector-sync", "--max-steps", "100000"]
+    environment:
+      SEARCH_DATABASE_PATH: /data/search.db
+      SEARCH_SCHEMA_PATH: /app/schema/sqlite.sql
+      SEARCH_RAW_DIR: /data/raw
+      SEARCH_EMBEDDING_MODEL_ID: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      SEARCH_EMBEDDING_MODEL_REVISION: ${SEARCH_EMBEDDING_MODEL_REVISION:-main}
+      OPENSEARCH_URL: http://opensearch:9200
+      HF_HOME: /models
+    volumes:
+      - search-data:/data
+      - embedding-models:/models
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    init: true
+    stop_grace_period: 40s
+    restart: "no"
+
 volumes:
+  embedding-models:
   opensearch-data:
   search-data:
