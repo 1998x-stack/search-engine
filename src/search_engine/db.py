@@ -52,15 +52,19 @@ class Database:
                     elif version == 2:
                         migration = self.schema_path.parent.parent / 'migrations' / '0003_document_processing.sql'
                         con.executescript(migration.read_text(encoding='utf-8'))
-                    elif version not in (3, 4):
+                    elif version not in (3, 4, 5):
                         raise RuntimeError(f'Unsupported SQLite schema version: {version}')
                     version = con.execute('PRAGMA user_version').fetchone()[0]
                     if version == 3:
                         migration4 = self.schema_path.parent.parent / 'migrations' / '0004_search_index.sql'
                         con.executescript(migration4.read_text(encoding='utf-8'))
+                    version = con.execute('PRAGMA user_version').fetchone()[0]
+                    if version == 4:
+                        migration5 = self.schema_path.parent.parent / 'migrations' / '0005_vector_projection.sql'
+                        con.executescript(migration5.read_text(encoding='utf-8'))
                     actual = con.execute('PRAGMA user_version').fetchone()[0]
-                    if actual != 4:
-                        raise RuntimeError(f'Schema initialization failed: expected 4, got {actual}')
+                    if actual != 5:
+                        raise RuntimeError(f'Schema initialization failed: expected 5, got {actual}')
             finally:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 

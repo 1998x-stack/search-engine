@@ -1,6 +1,6 @@
 # Search Engine
 
-**Status: Phase 4 — SQLite-backed crawling, document processing, OpenSearch BM25 and safe multilingual query planning.** This is a single-host development prototype, **not** a production-ready Web-scale search engine.
+**Status: Phase 5 — SQLite-backed crawling/processing, BM25 and opt-in multilingual HNSW hybrid retrieval.** This is a single-host development prototype, **not** a production-ready Web-scale search engine.
 
 ## Architecture
 
@@ -60,10 +60,11 @@ Tests cover cross-phase crawling and document processing, full SQLite migrations
 - [Phase 2 Document Processing & Deduplication](docs/12-PHASE2-IMPLEMENTATION.md)
 - [Phase 3 OpenSearch Indexing](docs/13-PHASE3-IMPLEMENTATION.md)
 - [Phase 4 Query Understanding and IR Evaluation](docs/14-PHASE4-IMPLEMENTATION.md)
+- [Phase 5 Hybrid Retrieval and Ranking](docs/15-PHASE5-IMPLEMENTATION.md)
 - [Gotchas](docs/gotchas.md)
 - [Stanford Introduction to Information Retrieval](https://nlp.stanford.edu/IR-book/)
 
-Architecture docs `docs/00` to `docs/10` describe future scope and remain distinct from the implementation. PR #1–#4 have been merged to main. Phase 4 is submitted as a separate feature branch.
+Architecture docs `docs/00` to `docs/10` describe future scope and remain distinct from the implementation. PR #1–#5 are merged into main. Phase 5 is developed on a separate PR for review.
 
 ## Explicit limits
 
@@ -87,3 +88,29 @@ Measures graded nDCG@10, Recall@100, MRR@10, Precision@10 and judged coverage fo
 **The included example judgments are synthetic and verify formulas only; this is not a real relevance-quality benchmark.**
 
 Limitations: no production relevance judgments, learned spelling model, transformer reranker, semantic vector search, production ACLs or distributed crawl deployment.
+
+## Phase 5: optional HNSW / Hybrid / RRF
+
+Default search remains BM25 (`mode=lexical`). Hybrid (`mode=hybrid`) additionally requires an explicitly initialized 384-dimensional vector index and a matching embedding model. If the model/index is unavailable, the API returns a **labeled lexical fallback**, not a fabricated semantic result. Quotes and exclusion queries remain lexical-only to preserve exact semantics.
+
+```bash
+# Standard runtime includes no heavy ML dependencies
+python -m pip install -e .
+# Optional local semantic inference; downloads pretrained artifacts on first use
+python -m pip install -e '.[semantic]'
+export SEARCH_EMBEDDING_MODEL_REVISION='<pin-an-immutable-model-commit>'
+python -m search_engine.cli --database ./data/search.db vector-init
+python -m search_engine.cli --database ./data/search.db vector-sync --batch-size 8
+export SEARCH_SEMANTIC_ENABLED=1
+python -m search_engine.cli --database ./data/search.db search 'search guide' --mode hybrid
+```
+
+Development Compose supports an **opt-in** `semantic` profile; its model-enabled image is large and **not** built in standard CI. Set model revision and run `docker compose --profile semantic up -d --build semantic-api`, then run the vector projector after initial index initialization. The dev OpenSearch has disabled security and must not be exposed on a public network.
+
+```bash
+PYTHONPATH=src python scripts/evaluate_hybrid.py --input tests/fixtures/hybrid-synthetic.json
+```
+
+The benchmark fixture is **synthetic**. For real quality claims, provide human-graded zh/en/mixed relevance judgments and evaluate BM25 versus vector+RRF (and reranking) with a frozen corpus and model identity.
+
+Operational limitations: vector syncing currently scans outstanding latest SQLite versions with revision receipts; it is not a distributed leased embedding queue. Reranker is optional and English-oriented by default. Hybrid offset pagination is deliberately disabled. See `docs/15-PHASE5-IMPLEMENTATION.md` for tombstone/restore/model-change caveats.

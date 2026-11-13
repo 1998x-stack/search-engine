@@ -18,6 +18,9 @@ from .indexing import OutboxIndexer
 from .opensearch import OpenSearchClient, DEFAULT_INDEX
 from .rebuild import IndexManager
 from .search import SearchService
+from .hybrid import HybridSearchService
+from .semantic import (VectorIndexManager,VectorProjector,SentenceTransformerEmbedder,
+                       CrossEncoderReranker,DEFAULT_MODEL_ID,VECTOR_INDEX)
 from .query import plan_query
 
 
@@ -61,6 +64,17 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument('--language')
     query.add_argument('--source-id')
     query.add_argument('--rewrite-mode',choices=['off','suggest','expand'],default='suggest')
+    query.add_argument('--mode',choices=['lexical','hybrid'],default='lexical')
+    query.add_argument('--rerank',action='store_true')
+    vector_init = subs.add_parser('vector-init')
+    vector_init.add_argument('--index',default=VECTOR_INDEX)
+    vector_reset = subs.add_parser('vector-reset-receipts')
+    vector_reset.add_argument('--confirm',action='store_true')
+    vector_sync = subs.add_parser('vector-sync')
+    vector_sync.add_argument('--batch-size',type=int,default=8)
+    vector_sync.add_argument('--max-steps',type=int,default=100)
+    vector_sync.add_argument('--once',action='store_true')
+
     analyze = subs.add_parser('analyze')
     analyze.add_argument('query')
     analyze.add_argument('--language')
@@ -111,13 +125,34 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(plan_query(args.query,language=args.language,
                                     source_id=args.source_id,
                                     rewrite_mode=args.rewrite_mode).public_summary(),ensure_ascii=False))
-    elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search'):
+    elif args.command in ('index','index-init','index-audit','index-retry-dead','index-rebuild','search','vector-init','vector-sync','vector-reset-receipts'):
         client = OpenSearchClient(os.getenv('OPENSEARCH_URL','http://127.0.0.1:9200'),
                                   username=os.getenv('OPENSEARCH_USERNAME'),
                                   password=os.getenv('OPENSEARCH_PASSWORD'))
         store = BlobStore(args.raw_dir)
         indexer = OutboxIndexer(db,store,client)
-        if args.command == 'index-init':
+        if args.command == 'vector-init':
+            VectorIndexManager(client,Path(__file__).resolve().parents[2] /
+                              'infra/opensearch/vectors-v1.json').initialize(args.index)
+            print('Vector index and aliases initialized:',args.index)
+        elif args.command == 'vector-reset-receipts':
+            emb = SentenceTransformerEmbedder(
+                os.getenv('SEARCH_EMBEDDING_MODEL_ID',DEFAULT_MODEL_ID),
+                os.getenv('SEARCH_EMBEDDING_MODEL_REVISION','main'))
+            projector = VectorProjector(db,store,client,emb)
+            deleted = projector.reset_receipts(confirmed_quiescent=args.confirm)
+            print(json.dumps({'removed_receipts':deleted,'model_key':emb.model_key}))
+        elif args.command == 'vector-sync':
+            emb = SentenceTransformerEmbedder(
+                os.getenv('SEARCH_EMBEDDING_MODEL_ID',DEFAULT_MODEL_ID),
+                os.getenv('SEARCH_EMBEDDING_MODEL_REVISION','main'))
+            projector = VectorProjector(db,store,client,emb)
+            for _ in range(1 if args.once else args.max_steps):
+                outcome = projector.sync_once(count=args.batch_size)
+                print(json.dumps(outcome),flush=True)
+                if not outcome['selected'] or outcome['failed'] or outcome['conflicts']:
+                    break
+        elif args.command == 'index-init':
             IndexManager(db,store,client,Path(__file__).resolve().parents[2] / 'infra/opensearch/documents-v1.json').initialize(args.index)
             print('Index and aliases initialized:',args.index)
         elif args.command == 'index':
@@ -134,8 +169,23 @@ def main(argv: list[str] | None = None) -> int:
             manager = IndexManager(db,store,client,Path(__file__).resolve().parents[2] / 'infra/opensearch/documents-v1.json')
             print(json.dumps(manager.rebuild_offline(args.new_index,confirmed_quiescent=args.offline_confirm)))
         else:
-            print(json.dumps(SearchService(client).search(args.query,language=args.language,
-                                                    source_id=args.source_id,rewrite_mode=args.rewrite_mode),ensure_ascii=False))
+            if args.mode == 'lexical' and not args.rerank:
+                result = SearchService(client).search(
+                    args.query,language=args.language,
+                    source_id=args.source_id,rewrite_mode=args.rewrite_mode)
+            else:
+                emb = SentenceTransformerEmbedder(
+                    os.getenv('SEARCH_EMBEDDING_MODEL_ID',DEFAULT_MODEL_ID),
+                    os.getenv('SEARCH_EMBEDDING_MODEL_REVISION','main')
+                ) if os.getenv('SEARCH_SEMANTIC_ENABLED')=='1' else None
+                reranker = CrossEncoderReranker(
+                    os.getenv('SEARCH_RERANKER_MODEL_ID','cross-encoder/ms-marco-MiniLM-L6-v2'),
+                    os.getenv('SEARCH_RERANKER_MODEL_REVISION','main')
+                ) if args.rerank and os.getenv('SEARCH_RERANK_ENABLED')=='1' else None
+                result = HybridSearchService(client,db,emb,reranker).search(
+                    args.query,language=args.language,source_id=args.source_id,
+                    rewrite_mode=args.rewrite_mode,mode=args.mode,rerank=args.rerank)
+            print(json.dumps(result,ensure_ascii=False))
     elif args.command == 'status':
         with db.connect() as con:
             if args.run_id:
