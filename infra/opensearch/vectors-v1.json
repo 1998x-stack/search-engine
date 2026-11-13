@@ -1,0 +1,78 @@
+{
+  "settings": {
+    "index": {
+      "knn": true,
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "3s"
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "document_id": {
+        "type": "keyword"
+      },
+      "revision": {
+        "type": "long"
+      },
+      "source_id": {
+        "type": "keyword"
+      },
+      "model_key": {
+        "type": "keyword"
+      },
+      "language": {
+        "type": "keyword"
+      },
+      "host": {
+        "type": "keyword"
+      },
+      "visibility": {
+        "type": "keyword"
+      },
+      "is_indexable": {
+        "type": "boolean"
+      },
+      "updated_at_ms": {
+        "type": "date",
+        "format": "epoch_millis"
+      },
+      "canonical_url": {
+        "type": "keyword",
+        "ignore_above": 2048
+      },
+      "title": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "zh": {
+            "type": "text",
+            "analyzer": "cjk"
+          },
+          "en": {
+            "type": "text",
+            "analyzer": "english"
+          }
+        }
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "standard"
+      },
+      "embedding": {
+        "type": "knn_vector",
+        "dimension": 384,
+        "method": {
+          "name": "hnsw",
+          "engine": "lucene",
+          "space_type": "cosinesimil",
+          "parameters": {
+            "m": 16,
+            "ef_construction": 100
+          }
+        }
+      }
+    }
+  }
+}

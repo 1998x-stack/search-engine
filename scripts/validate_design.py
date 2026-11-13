@@ -16,9 +16,9 @@ def main():
     with sqlite3.connect(':memory:') as con:
         con.executescript((ROOT/'schema/sqlite.sql').read_text())
         tables={r[0] for r in con.execute('SELECT name FROM sqlite_master WHERE type="table"')}
-        assert {'sources','hosts','host_leases','host_robots','urls','jobs','fetches','index_outbox','document_signatures','signature_bands','index_receipts'} <= tables
+        assert {'sources','hosts','host_leases','host_robots','urls','jobs','fetches','index_outbox','document_signatures','signature_bands','index_receipts','vector_receipts'} <= tables
         assert con.execute('PRAGMA foreign_keys').fetchone()[0] == 1
-        assert con.execute('PRAGMA user_version').fetchone()[0] == 4
+        assert con.execute('PRAGMA user_version').fetchone()[0] == 5
     mapping=json.loads((ROOT/'infra/opensearch/documents-v1.json').read_text())
     assert mapping['mappings']['dynamic']=='strict'
     assert mapping['mappings']['properties']['title']['fields']['zh']['analyzer']=='cjk'

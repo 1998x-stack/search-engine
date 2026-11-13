@@ -116,7 +116,7 @@ class Phase3Tests(unittest.TestCase):
 
     def test_v4_schema_created(self):
         with self.db.connect() as con:
-            self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],4)
+            self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],5)
             self.assertEqual(con.execute('SELECT COUNT(*) FROM index_receipts').fetchone()[0],0)
 
     def test_v3_to_v4_migration_preserves_docs(self):
@@ -127,7 +127,7 @@ class Phase3Tests(unittest.TestCase):
                 self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],3)
             Database(path,ROOT/'schema/sqlite.sql').initialize()
             with closing(sqlite3.connect(path)) as con:
-                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],4)
+                self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],5)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM index_receipts").fetchone()[0],0)
 
     def test_versioned_upsert_and_search(self):

@@ -155,5 +155,13 @@ CREATE TABLE IF NOT EXISTS index_receipts (
  PRIMARY KEY(index_alias,document_id)
 );
 CREATE INDEX IF NOT EXISTS idx_outbox_lease ON index_outbox(state,leased_until_ms);
-PRAGMA user_version=4;
+CREATE TABLE IF NOT EXISTS vector_receipts (
+  model_key TEXT NOT NULL,
+  document_id TEXT NOT NULL REFERENCES documents(document_id),
+  revision INTEGER NOT NULL CHECK(revision>=1),
+  indexed_at_ms INTEGER NOT NULL,
+  PRIMARY KEY(model_key,document_id)
+);
+CREATE INDEX IF NOT EXISTS idx_vector_receipts_document ON vector_receipts(document_id,revision);
+PRAGMA user_version=5;
 COMMIT;
