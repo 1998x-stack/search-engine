@@ -9,6 +9,14 @@ from typing import Iterator
 def clock_ms() -> int:
     return time.time_ns() // 1_000_000
 
+class ManagedConnection(sqlite3.Connection):
+    """Unlike sqlite3's default context manager, close on context exit."""
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
 class Database:
     def __init__(self, path: str | Path, schema_path: str | Path | None = None):
         self.path = Path(path)
@@ -16,7 +24,7 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> sqlite3.Connection:
-        con = sqlite3.connect(str(self.path), timeout=5, isolation_level=None)
+        con = sqlite3.connect(str(self.path), timeout=5, isolation_level=None, factory=ManagedConnection)
         con.row_factory = sqlite3.Row
         con.execute('PRAGMA foreign_keys=ON')
         con.execute('PRAGMA busy_timeout=5000')

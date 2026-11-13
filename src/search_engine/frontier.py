@@ -74,11 +74,13 @@ class Frontier:
             raise ValueError('Crawl run not active or mismatched to source')
         config = json.loads(linked_run['config_json'])
         max_urls = max(1, min(100_000, int(config.get('max_urls', 10_000))))
-        existing = con.execute('SELECT url_id FROM urls WHERE source_id=? AND normalized_url=?',
-                               (source_id,normalized)).fetchone()
-        if not existing:
-            total = con.execute('''SELECT COUNT(DISTINCT j.entity_id) FROM jobs j
-                WHERE j.run_id=? AND j.kind='FETCH_URL' ''', (run_id,)).fetchone()[0]
+        url_id = hashlib.sha256(f'{source_id}\0{normalized}'.encode()).hexdigest()
+        # Budget is per crawl run even for URLs already known from older runs.
+        in_this_run = con.execute("""SELECT 1 FROM jobs WHERE run_id=?
+            AND kind='FETCH_URL' AND entity_id=?""",(run_id,url_id)).fetchone()
+        if not in_this_run:
+            total = con.execute("""SELECT COUNT(*) FROM jobs j
+                WHERE j.run_id=? AND j.kind='FETCH_URL'""",(run_id,)).fetchone()[0]
             if total >= max_urls:
                 raise URLRejected('Run URL budget exhausted')
         host_id = origin(normalized)
@@ -86,7 +88,6 @@ class Frontier:
             (host_id,hostname,max_inflight,min_interval_ms,updated_at_ms)
             VALUES(?,?,?,?,?)''',
             (host_id,urlsplit(normalized).hostname,self.max_inflight,self.min_interval_ms,now))
-        url_id = hashlib.sha256(f'{source_id}\0{normalized}'.encode()).hexdigest()
         con.execute('''INSERT OR IGNORE INTO urls
             (url_id,source_id,host_id,normalized_url,original_url,parent_url_id,
              depth,first_seen_at_ms) VALUES (?,?,?,?,?,?,?,?)''',

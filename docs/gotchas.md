@@ -16,6 +16,8 @@
 | G-012 | P0 | HTTP 200 HTML robots verification page could appear empty and permit all pages | design inspection | robots content type and HTML challenge detection + persistent status guard; fixture test PASS |
 | G-013 | P1 | Robots percent-encoding and multi-agent edge cases | design inspection | conservative P0 matcher, differential tests before production |
 | G-014 | P1 | Expired permit/worker with blocking network can cause transient over-concurrency | design inspection | timeout < permit lifetime, fault/load tests pending |
+| G-016 | P0 | Prior-run URLs bypassed new run's max_urls budget | local regression test | count jobs in current run, regardless of preexisting URL; PASS |
+| G-017 | P0 | sqlite3 context manager did not close connections, leaked file descriptors | Python 3.13 ResourceWarning test | ManagedConnection closes on exit; resource-warning-as-error tests PASS |
 | G-015 | P1 | Incomplete migration/backup/restore on populated data | design review | test via SQLite backup API before production |
 
 When recording new incidents: date, commit, environment, exact repro, root cause, regression test, fix and remaining risk. Distinguish observed failures from possible hazards.

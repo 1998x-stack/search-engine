@@ -273,6 +273,18 @@ Allow: /tmp/public$''')
             with self.assertRaises(URLRejected):
                 frontier.add_url('s',fixture.root+'/b',run_id=run,now_ms=0)
 
+    def test_max_urls_budget_across_existing_urls_from_prior_runs(self):
+        with FixtureServer() as fixture:
+            frontier = Frontier(self.db,allowed_ports={fixture.server.server_port})
+            frontier.create_source('s',fixture.root,now_ms=0)
+            first = frontier.create_run('s',now_ms=0)
+            frontier.add_url('s',fixture.root,run_id=first,now_ms=0)
+            frontier.add_url('s',fixture.root+'/next',run_id=first,now_ms=0)
+            second = frontier.create_run('s',config={'max_urls':1},now_ms=1)
+            frontier.add_url('s',fixture.root,run_id=second,now_ms=1)
+            with self.assertRaises(URLRejected):
+                frontier.add_url('s',fixture.root+'/next',run_id=second,now_ms=1)
+
     def test_finalize_and_cancel_run(self):
         with FixtureServer() as fixture:
             crawler,frontier,run = self.make_crawler(fixture)
